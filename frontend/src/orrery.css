@@ -15,6 +15,9 @@
 #aurora-orrery-root { position: fixed; inset: 0; z-index: 80; pointer-events: none; isolation: isolate; }
 .orrery-app { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--orr-ink); font-family: var(--orr-mono); }
 .orrery-app > * { pointer-events: auto; }
+.orrery-view-listen { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; pointer-events: auto; background: var(--orr-night); }
+.orrery-view-chat .orrery-page-mark { color: var(--orr-ink); }
+.orrery-view-chat .orrery-home-link { color: var(--orr-blue); }
 .orrery-app button, .orrery-app input, .orrery-app textarea { font: inherit; }
 .orrery-app button { cursor: pointer; }
 .orrery-app button:focus-visible { outline: 2px solid var(--orr-blue); outline-offset: 4px; }

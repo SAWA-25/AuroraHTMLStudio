@@ -1,6 +1,23 @@
 /* View-only adapter. Original panes, listeners, messages and saved layout stay owned by Aurora. */
+import { installPreviewCaptureGuard, lockScreenshotButton } from './captureSafety.js';
 const VIEWS = new Set(['home', 'chat', 'listen', 'workspace']);
 let removeInstalledBridge;
+let captureGuard;
+let restoreShotButton;
+
+function ensureCaptureGuard() {
+  if (captureGuard) return;
+  const preview = typeof PV !== 'undefined' ? PV : globalThis.PV;
+  captureGuard = installPreviewCaptureGuard(preview, document);
+}
+
+function guardChatCapture(event) {
+  if (document.body?.dataset?.orreryView !== 'chat' || !event.target?.closest?.('#tgShot')) return;
+  if (event.type === 'click' || ['Enter', ' '].includes(event.key)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}
 
 function reportFailure(action, error) {
   const detail = error instanceof Error ? error.message : String(error);
@@ -36,6 +53,10 @@ export function enterLegacyView(view) {
     tab.click();
     if (!chat.classList.contains('active')) throw new Error('原生聊天入口尚未完成初始化');
   }
+  if (view !== 'workspace') ensureCaptureGuard();
+  if (document.body.dataset.orreryView !== view) captureGuard?.viewChanged();
+  if (view === 'chat' && !restoreShotButton) restoreShotButton = lockScreenshotButton(document.getElementById('tgShot'));
+  if (view !== 'chat') { restoreShotButton?.(); restoreShotButton = undefined; }
   document.body.dataset.orreryView = view;
   return view;
 }
@@ -132,13 +153,22 @@ export function installLegacyBridge(onOpen) {
   };
   button.addEventListener('click', openHome);
   document.addEventListener('click', leaveChatForNativeControl, true);
+  document.addEventListener('click', guardChatCapture, true);
+  document.addEventListener('keydown', guardChatCapture, true);
   rail.prepend(button);
   const cleanup = () => {
     button.removeEventListener('click', openHome);
     document.removeEventListener('click', leaveChatForNativeControl, true);
     button.remove();
-    document.getElementById('orrery-bridge-notice')?.remove();
-    if (removeInstalledBridge === cleanup) removeInstalledBridge = undefined;
+    if (removeInstalledBridge === cleanup) {
+      document.removeEventListener('click', guardChatCapture, true);
+      document.removeEventListener('keydown', guardChatCapture, true);
+      document.getElementById('orrery-bridge-notice')?.remove();
+      document.body.dataset.orreryView = 'workspace';
+      restoreShotButton?.(); restoreShotButton = undefined;
+      captureGuard?.release(); captureGuard = undefined;
+      removeInstalledBridge = undefined;
+    }
   };
   removeInstalledBridge = cleanup;
   return cleanup;

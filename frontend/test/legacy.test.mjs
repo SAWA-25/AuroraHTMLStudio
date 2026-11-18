@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { installPreviewCaptureGuard, lockScreenshotButton } from '../src/captureSafety.js';
 
-const source = readFileSync(new URL('../src/legacy.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/legacy.js', import.meta.url), 'utf8').split(String.fromCharCode(10)).filter(line => !line.startsWith('import ')).join(String.fromCharCode(10));
 
 function fixture({ ready = true, withRail = true } = {}) {
   const listeners = new Map();
@@ -27,7 +28,7 @@ function fixture({ ready = true, withRail = true } = {}) {
     constructor(tag) {
       this.tagName = tag; this.children = []; this.dataset = {}; this.attributes = {};
       this.events = new Map(); this.classes = new Set(); this.disabled = false;
-      this.classList = { contains: name => this.classes.has(name), add: name => this.classes.add(name) };
+      this.classList = { contains: name => this.classes.has(name), add: name => this.classes.add(name), remove: name => this.classes.delete(name), toggle: (name, on) => on ? this.classes.add(name) : this.classes.delete(name) };
     }
     append(...nodes) { nodes.forEach(node => { node.remove(); node.parentNode = this; this.children.push(node); }); }
     appendChild(node) { this.append(node); return node; }
@@ -36,23 +37,27 @@ function fixture({ ready = true, withRail = true } = {}) {
       if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(node => node !== this);
       this.parentNode = null;
     }
-    setAttribute(key, value) { this.attributes[key] = value; }
+    setAttribute(key, value) { this.attributes[key] = String(value); }
+    getAttribute(key) { return this.attributes[key] ?? null; }
+    removeAttribute(key) { delete this.attributes[key]; }
     addEventListener(type, callback) {
       const set = this.events.get(type) || new Set(); set.add(callback); this.events.set(type, set);
     }
     removeEventListener(type, callback) { this.events.get(type)?.delete(callback); }
-    closest() {
-      if (this.id === 'btnCollapseSide' || this.dataset.side === 'design') return this;
-      return this.parentNode?.closest() || null;
+    closest(selector) {
+      if (selector === '#tgShot' && this.id === 'tgShot') return this;
+      if (selector.includes('#btnCollapseSide') && (this.id === 'btnCollapseSide' || this.dataset.side === 'design')) return this;
+      return this.parentNode?.closest(selector) || null;
     }
-    click() {
-      if (this.disabled) return;
-      const event = { target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
-      listeners.get('click')?.forEach(fn => fn(event));
-      if (this.onclick) this.onclick(event);
-      this.events.get('click')?.forEach(fn => fn(event));
+    dispatch(type, fields = {}) {
+      const event = { type, target: this, defaultPrevented: false, stopped: false,
+        preventDefault() { this.defaultPrevented = true; }, stopImmediatePropagation() { this.stopped = true; }, ...fields };
+      for (const fn of listeners.get(type) || []) { fn(event); if (event.stopped) return event; }
+      this[`on${type}`]?.(event);
+      this.events.get(type)?.forEach(fn => fn(event));
       return event;
     }
+    click() { if (!this.disabled) return this.dispatch('click'); }
   }
   document.body = new Element('body');
   const workspace = new Element('main'); workspace.id = 'workspace';
@@ -65,19 +70,22 @@ function fixture({ ready = true, withRail = true } = {}) {
   const rail = new Element('nav');
   const settings = new Element('button'); settings.id = 'btnSettings';
   const toasts = new Element('div'); toasts.id = 'toastRoot';
+  const shot = new Element('button'); shot.id = 'tgShot'; shot.classList.add('on'); shot.setAttribute('title', '截图');
+  chat.append(shot);
+  shot.onclick = () => { calls.saves++; };
   chatTab.onclick = () => { calls.tabs++; chat.classList.add('active'); };
-  const calls = { tabs: 0, settings: 0, holds: 0, life: [], errors: [], notices: [], callbacks: [] };
+  const calls = { tabs: 0, settings: 0, holds: 0, captures: 0, saves: 0, life: [], errors: [], notices: [], callbacks: [] };
   side.append(chat); pane.append(chatTab, design, collapse, side); workspace.append(pane);
   document.body.append(workspace, rail, settings, toasts);
-  const context = vm.createContext({ document, console: { error: (...args) => calls.errors.push(args) } });
+  const context = vm.createContext({ document, installPreviewCaptureGuard, lockScreenshotButton, console: { error: (...args) => calls.errors.push(args) } });
   // A classic-script const intentionally has no window/globalThis property, matching Aurora.
-  vm.runInContext('const App = { settings: { ui: Object.freeze({ hideSide: true, sideW: 360 }) } }; const ToolHub = { tools: [] };', context);
+  vm.runInContext('const App = { settings: { ui: Object.freeze({ hideSide: true, sideW: 360 }), ctx: { shot: true } } }; const ToolHub = { tools: [] }; const PV = { capture: async function () { fixtureCalls.captures++; return "preview-pixels"; } };', context);
   context.fixtureCalls = calls;
   vm.runInContext('App.openSettings = () => fixtureCalls.settings++; ToolHub.tools.push({ id: "chat13-bookmarks", open: () => fixtureCalls.holds++ });', context);
   context.HUB15 = { open: async category => calls.life.push(category) };
   context.toast = (message, kind) => calls.notices.push({ message, kind });
   vm.runInContext(`${source.replace(/^export /gm, '')}\nglobalThis.bridge = { enterLegacyView, runLegacyAction, installLegacyBridge };`, context);
-  return { context, bridge: context.bridge, document, listeners, calls, pane, side, chat, design, collapse, rail, settings };
+  return { context, bridge: context.bridge, document, listeners, calls, pane, side, chat, design, collapse, rail, settings, shot };
 }
 
 test('chat activates the real tab without reparenting nodes or writing saved layout', () => {
@@ -163,6 +171,45 @@ test('native design and collapse controls leave letter view without cancelling t
   }
   assert.equal(nativeActions, 2); assert.deepEqual(f.calls.callbacks, ['workspace', 'workspace']);
   cleanup();
+});
+
+test('chat blocks capture and toggle handlers without changing persisted screenshot settings', async () => {
+  const f = fixture();
+  const capture = vm.runInContext('PV.capture', f.context);
+  const settingsBefore = vm.runInContext('JSON.stringify(App.settings)', f.context);
+  const cleanup = f.bridge.installLegacyBridge(() => {});
+  f.bridge.enterLegacyView('chat');
+  assert.equal(f.shot.disabled, true);
+  assert.equal(f.shot.classList.contains('on'), false);
+  assert.equal(f.shot.dispatch('click').defaultPrevented, true);
+  assert.equal(f.shot.dispatch('keydown', { key: 'Enter' }).stopped, true);
+  await assert.rejects(vm.runInContext('PV.capture(null, 1280)', f.context), /停用预览截图/);
+  assert.equal(f.calls.captures, 0); assert.equal(f.calls.saves, 0);
+  assert.equal(vm.runInContext('JSON.stringify(App.settings)', f.context), settingsBefore);
+  f.bridge.enterLegacyView('workspace');
+  assert.equal(f.shot.disabled, false);
+  assert.equal(f.shot.classList.contains('on'), true);
+  assert.equal(f.shot.getAttribute('title'), '截图');
+  assert.equal(f.shot.getAttribute('aria-disabled'), null);
+  assert.equal(await vm.runInContext('PV.capture()', f.context), 'preview-pixels');
+  assert.equal(f.calls.captures, 1);
+  f.shot.click(); assert.equal(f.calls.saves, 1);
+  cleanup();
+  assert.equal(vm.runInContext('PV.capture', f.context), capture);
+  assert.equal(f.listeners.get('keydown').size, 0);
+});
+
+test('stale bridge cleanup cannot unlock the current chat guard', async () => {
+  const f = fixture();
+  const first = f.bridge.installLegacyBridge(() => {});
+  const second = f.bridge.installLegacyBridge(() => {});
+  f.bridge.enterLegacyView('chat');
+  first();
+  assert.equal(f.shot.disabled, true);
+  await assert.rejects(vm.runInContext('PV.capture()', f.context), /停用预览截图/);
+  second();
+  assert.equal(f.shot.disabled, false);
+  assert.equal(await vm.runInContext('PV.capture()', f.context), 'preview-pixels');
 });
 
 test('bridge requires a real ready rail and callback', () => {

@@ -12,7 +12,7 @@
   align-content: center;
   min-height: 100svh;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: clip;
   padding: 96px clamp(24px, 6.2vw, 100px) calc(64px + env(safe-area-inset-bottom, 0px));
   color: var(--orr-listen-paper);
   background: var(--orr-listen-ink);
