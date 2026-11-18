@@ -78,6 +78,19 @@ export async function runLegacyAction(id) {
       enterLegacyView('workspace');
       return true;
     }
+    const app = typeof App !== 'undefined' ? App : globalThis.App;
+    const buttonIds = { new: 'btnNew', projects: 'projBtn', import: 'btnImport' };
+    if (buttonIds[id]) {
+      const button = document.getElementById(buttonIds[id]);
+      if (!button || button.disabled || typeof button.onclick !== 'function') throw new Error('此创作入口尚未就绪');
+      button.click();
+      return true;
+    }
+    if (id === 'assistant') {
+      if (typeof app?.showSide !== 'function') throw new Error('创作助手尚未就绪');
+      app.showSide();
+      return true;
+    }
     if (id === 'hold') {
       // App/ToolHub are classic-script lexical globals, not necessarily window properties.
       const registry = typeof ToolHub !== 'undefined' ? ToolHub : globalThis.ToolHub;
@@ -88,7 +101,7 @@ export async function runLegacyAction(id) {
       } else throw new Error('消息收藏夹尚未加载');
       return true;
     }
-    if (id === 'life') {
+    if (id === 'tools' || id === 'life') {
       if (typeof globalThis.HUB15?.open !== 'function') throw new Error('创作中心尚未加载');
       await globalThis.HUB15.open('home');
       return true;
@@ -118,17 +131,9 @@ function createOrreryMark() {
     svg.appendChild(node);
   };
   for (const [key, value] of Object.entries({ viewBox: '0 0 40 40', width: 26, height: 26, fill: 'none', stroke: 'currentColor', 'stroke-width': 0.8, 'aria-hidden': 'true', focusable: 'false' })) svg.setAttribute(key, String(value));
-  append('ellipse', { cx: 20, cy: 20, rx: 14, ry: 14 });
-  append('ellipse', { cx: 20, cy: 20, rx: 18, ry: 6.5, transform: 'rotate(-37 20 20)' });
-  let ticks = '';
-  for (let i = 0; i < 12; i++) {
-    const angle = i * Math.PI / 6;
-    const inner = i % 3 ? 15.5 : 14.5;
-    ticks += `M${20 + inner * Math.cos(angle)},${20 + inner * Math.sin(angle)}L${20 + 17 * Math.cos(angle)},${20 + 17 * Math.sin(angle)}`;
-  }
-  append('path', { d: ticks });
-  append('path', { d: 'M16 20H24M20 16V24M29.5 9.5l2-2m-2 0 2 2', 'stroke-width': 1 });
-  append('circle', { cx: 9.1, cy: 28.2, r: 1.6, fill: 'currentColor', stroke: 'none' });
+  append('path', { d: 'M3 6h34v28H3zM3 12h34M11 6v28', opacity: .55 });
+  append('path', { d: 'm21 18-5 5 5 5m6-10 5 5-5 5', 'stroke-width': 1.2 });
+  append('path', { d: 'M6 3V0M0 9h3M34 37v3M37 31h3' });
   return svg;
 }
 
@@ -143,14 +148,14 @@ export function installLegacyBridge(onOpen) {
   button.type = 'button';
   button.className = 'rail-btn orrery-rail-entry';
   button.dataset.rail = 'aurora-orrery';
-  button.title = '返回星盘 · Aurora';
-  button.setAttribute('aria-label', '返回星盘');
+  button.title = '创作起始台 · Aurora';
+  button.setAttribute('aria-label', '返回创作起始台');
   const label = document.createElement('span');
-  label.textContent = '星盘';
+  label.textContent = '创作起始台';
   button.append(createOrreryMark(), label);
   const open = view => {
     try {
-      enterLegacyView(view);
+      // The presentation owns the commit so old canvas pixels survive snapshot capture.
       const result = onOpen(view);
       if (result && typeof result.catch === 'function') result.catch(error => reportFailure(view, error));
     } catch (error) { reportFailure(view, error); }

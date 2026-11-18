@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurora HTML Studio</title>
+<style>html,body{background:#171310;margin:0}#boot{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#171310;color:#e6dbcf;font:13px system-ui,sans-serif}#bootErr{max-width:80vw;white-space:pre-wrap;color:#f08a80;font:12px monospace;text-align:left}#bootErr button{margin:10px 6px 0 0;padding:8px 16px;border-radius:8px;border:0;background:#d49172;color:#21170f;cursor:pointer;font:13px system-ui}</style>
+<script>
+(function(){var errs=[];window.__bootErrs=errs;
+window.addEventListener('error',function(e){errs.push((e.message||'资源加载失败')+' @ '+(e.filename||(e.target&&(e.target.src||e.target.href))||'')+(e.lineno?':'+e.lineno:''));},true);
+window.addEventListener('unhandledrejection',function(e){errs.push('Promise: '+(e.reason&&e.reason.message||e.reason));});
+window.__resetLayout=async function(){
+  if(window.__resetLayoutBusy)throw new Error('布局重置正在进行，请等待');
+  var live=null,store=null,token=null,locked=false;
+  try{if(typeof App==='object')live=App;}catch(e){}
+  try{if(typeof Store==='object')store=Store;}catch(e){}
+  if((live&&live.restoring)||(store&&store.paused))throw new Error('请先完成当前的数据恢复，再重置布局');
+  if(window.WIN15&&WIN15.hasOtherWindows&&WIN15.hasOtherWindows())throw new Error('请先关闭其他 Aurora 窗口，再重置布局');
+  window.__resetLayoutBusy=true;
+  try{
+    // 先完成已排队的编辑，再阻止旧内存、计时器和卸载保存撤销重置。
+    if(live){live.restoring=true;locked=true;}
+    if(store&&store.flush){var saved=await store.flush();if((saved&&saved.ok===false)||(store.hasUnsaved&&store.hasUnsaved()))throw new Error('仍有内容未保存，请先重试保存，再重置布局');}
+    if(store&&store.beginRecovery)token=await store.beginRecovery();
+    var r=await fetch('/api/kv?k=settings',{cache:'no-store',signal:AbortSignal.timeout(15000)});
+    if(!r.ok)throw new Error('读取设置失败（HTTP '+r.status+'），没有重置任何内容');
+    var version=r.headers&&r.headers.get('ETag');
+    if(!version||!/^"(?:missing|[a-f0-9]{64})"$/i.test(version))throw new Error('服务器缺少数据版本，请重启新版 Aurora 后重试');
+    var settings=await r.json();
+    if(!settings||typeof settings!=='object'||Array.isArray(settings))throw new Error('无法确认原设置，未执行重置。请先备份 data 目录');
+    var ui=Object.assign({},settings.ui||{});
+    ['theme','editorW','editorH','sideW','hideEditor','hideSide','fontSize','wrap','device','bg','zoom','accent','density','backdrop','railLabels'].forEach(function(k){delete ui[k];});
+    settings.ui=ui;
+    var data=JSON.stringify(settings);
+    r=await fetch('/api/kv?k=settings',{method:'POST',headers:{'Content-Type':'application/json','If-Match':version},body:data,signal:AbortSignal.timeout(15000)});
+    if(r.status===412||r.status===428)throw new Error('其他窗口已修改设置，本次没有重置。请重新读取后重试');
+    if(!r.ok)throw new Error('保存布局失败（HTTP '+r.status+'），请重试；尚未重新加载');
+    if(live){live.settings=settings;live._confirmedRecoveryReload=true;}
+    try{localStorage.setItem('aurora_settings',data);}catch(e){console.warn('布局已写入数据目录，浏览器缓存未更新',e);}
+    // 成功后保持保存屏障，直到安全模式的新文档替换当前页面。
+  }catch(e){
+    if(token)store.endRecovery(token,'cancel');
+    if(locked)live.restoring=false;
+    throw e;
+  }finally{window.__resetLayoutBusy=false;}
+};
+window.__bootFail=function(msg,waiting){var b=document.getElementById('boot');if(!b)return;if(window.AuroraSplash)window.AuroraSplash.fail(waiting===true);var d=document.getElementById('bootErr');if(!d){d=document.createElement('div');d.id='bootErr';b.appendChild(d);}
+d.textContent='启动遇到问题：'+(msg||'')+(errs.length?'\n\n'+errs.slice(-8).join('\n'):'')+'\n';
+var safe=function(){var u=new URL(location.href);u.searchParams.set('safe','1');location.assign(u.href);};
+var r=document.createElement('button');r.textContent='重新加载';r.onclick=function(){location.reload();};
+var c=document.createElement('button');c.textContent='安全模式（不加载插件）';c.onclick=safe;
+var reset=document.createElement('button');reset.textContent='仅重置界面布局';reset.title='保留 API、预设、长期要求及其他设置';
+reset.onclick=async function(){if(!confirm('仅重置外观、面板宽度和预览布局，保留 API、预设和长期要求。请先关闭其他 Aurora 窗口。继续？'))return;reset.disabled=true;try{await window.__resetLayout();safe();}catch(e){var err=document.createElement('div');err.textContent=e.message||String(e);d.appendChild(err);reset.disabled=false;}};
+d.appendChild(r);d.appendChild(c);d.appendChild(reset);};
+setTimeout(function(){if(document.getElementById('boot')&&!window.__booted)window.__bootFail('15 秒内没有完成启动。',true);},15000);})();
+</script>
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="lib/fa/css/all.min.css">
+<link rel="stylesheet" href="lib/codemirror.bundle.css">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/preset.css">
+<link rel="stylesheet" href="css/shell.css">
+<link rel="stylesheet" href="css/charcard.css">
+<link rel="stylesheet" href="css/novel.css">
+<link rel="stylesheet" href="css/worldbook.css">
+<link rel="stylesheet" href="css/lead5.css">
+<link rel="stylesheet" href="css/mvu.css">
+<link rel="stylesheet" href="css/updater.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/gallery6.css">
+<link rel="stylesheet" href="css/agents.css">
+<link rel="stylesheet" href="css/paint.css">
+<link rel="stylesheet" href="css/preset8.css">
+<link rel="stylesheet" href="css/st9.css">
+<link rel="stylesheet" href="css/gen9.css">
+<link rel="stylesheet" href="css/keep10.css">
+<link rel="stylesheet" href="css/len10.css">
+<link rel="stylesheet" href="css/tpl10.css">
+<link rel="stylesheet" href="css/ai10.css">
+<link rel="stylesheet" href="css/gr10.css">
+<link rel="stylesheet" href="css/pe10.css">
+<link rel="stylesheet" href="css/cc10.css">
+<link rel="stylesheet" href="css/wb10.css">
+<link rel="stylesheet" href="css/outlet12.css">
+<link rel="stylesheet" href="css/lb12.css">
+<link rel="stylesheet" href="css/cp12.css">
+<link rel="stylesheet" href="css/tc12.css">
+<link rel="stylesheet" href="css/agents8.css">
+<link rel="stylesheet" href="css/st8.css">
+<link rel="stylesheet" href="css/lp7.css">
+<link rel="stylesheet" href="css/agents7.css">
+<link rel="stylesheet" href="css/gallery7.css">
+<link rel="stylesheet" href="css/st7.css">
+<link rel="stylesheet" href="css/regex7.css">
+<link rel="stylesheet" href="css/core7.css">
+<link rel="stylesheet" href="css/base13.css">
+<link rel="stylesheet" href="css/studio13.css">
+<link rel="stylesheet" href="css/chat13.css">
+<link rel="stylesheet" href="css/proj13.css">
+<link rel="stylesheet" href="css/cc13.css">
+<link rel="stylesheet" href="css/wb13.css">
+<link rel="stylesheet" href="css/pe13.css">
+<link rel="stylesheet" href="css/lab13.css">
+<link rel="stylesheet" href="css/art13.css">
+<link rel="stylesheet" href="css/sys13.css">
+<link rel="stylesheet" href="css/gc13.css">
+<link rel="stylesheet" href="css/cp13.css">
+<link rel="stylesheet" href="css/tb13.css">
+<link rel="stylesheet" href="css/qol13.css">
+<link rel="stylesheet" href="css/base14.css"><!--v14-->
+<link rel="stylesheet" href="css/studio14.css"><!--v14-->
+<link rel="stylesheet" href="css/chat14.css"><!--v14-->
+<link rel="stylesheet" href="css/cc14.css"><!--v14-->
+<link rel="stylesheet" href="css/wb14.css"><!--v14-->
+<link rel="stylesheet" href="css/pe14.css"><!--v14-->
+<link rel="stylesheet" href="css/lab14.css"><!--v14-->
+<link rel="stylesheet" href="css/art14.css"><!--v14-->
+<link rel="stylesheet" href="css/proj14.css"><!--v14-->
+<link rel="stylesheet" href="css/sys14.css"><!--v14-->
+<link rel="stylesheet" href="css/gc14.css"><!--v14-->
+<link rel="stylesheet" href="css/tb14.css"><!--v14-->
+<link rel="stylesheet" href="css/cp14.css"><!--v14-->
+<link rel="stylesheet" href="css/fix14.css"><!--v14-->
+<link rel="stylesheet" href="css/qol14.css"><!--v14-->
+<link rel="stylesheet" href="css/rv15.css"><!--v15-->
+<link rel="stylesheet" href="css/ref15.css"><!--v15-->
+<link rel="stylesheet" href="css/link15.css"><!--v15-->
+<link rel="stylesheet" href="css/wb15.css"><!--v15-->
+<link rel="stylesheet" href="css/qr15.css"><!--v15-->
+<link rel="stylesheet" href="css/st15.css"><!--v15-->
+<link rel="stylesheet" href="css/plug15.css"><!--v15-->
+<link rel="stylesheet" href="css/cc15.css"><!--v15-->
+<link rel="stylesheet" href="css/hub15.css"><!--v15-->
+<link rel="stylesheet" href="css/win15.css"><!--v15-->
+<link rel="stylesheet" href="css/fix15.css"><!--v15-->
+<link rel="stylesheet" href="css/qol15.css"><!--v15-->
+<link rel="stylesheet" href="css/mkt16.css"><!--v16-->
+<link rel="stylesheet" href="css/fe16.css"><!--v16-->
+<link rel="stylesheet" href="css/stchk16.css"><!--v16-->
+<link rel="stylesheet" href="css/snip16.css"><!--v16-->
+<link rel="stylesheet" href="css/qol16.css"><!--v16-->
+<link rel="stylesheet" href="css/fix17.css"><!--v17-->
+<link rel="stylesheet" href="css/art18.css"><!--v18-->
+<link rel="stylesheet" href="css/mp18.css"><!--v18-->
+<link rel="stylesheet" href="css/fix18a.css"><!--v18-->
+<link rel="stylesheet" href="css/fix18b.css"><!--v18-->
+<link rel="stylesheet" href="css/fix18c.css"><!--v18-->
+<link rel="stylesheet" href="css/fix18d.css"><!--v18-->
+<link rel="stylesheet" href="css/aurora-ui.css">
+<link rel="stylesheet" href="css/aurora-tools.css">
+<link rel="stylesheet" href="css/aurora-splash.css">
+<link rel="stylesheet" href="css/aurora-workbench.css">
+<link rel="stylesheet" href="css/aurora-pages.css">
+<link rel="stylesheet" href="css/aurora-pages-settings.css">
+<link rel="stylesheet" href="css/aurora-pages-assets.css">
+<link rel="stylesheet" href="css/aurora-pages-creation.css">
+<link rel="stylesheet" href="css/aurora-pages-workflows.css">
+<link rel="stylesheet" href="css/aurora-atlas.css">
+<link rel="stylesheet" href="css/aurora-orrery.css">
+</head>
+<body>
+<div id="boot" aria-label="Aurora HTML Studio 正在启动" aria-busy="true">
+  <div class="boot-meta"><span>AURORA / HTML STUDIO</span><span>项目 · 代码 · 实时预览</span></div>
+  <div class="boot-composition">
+    <div class="boot-workbench" aria-hidden="true">
+      <div class="boot-code">
+        <i class="boot-code-row" style="--row:0;--row-width:76%"></i>
+        <i class="boot-code-row" style="--row:1;--row-width:92%"></i>
+        <i class="boot-code-row" style="--row:2;--row-width:61%"></i>
+        <i class="boot-code-row" style="--row:3;--row-width:84%"></i>
+        <i class="boot-code-row" style="--row:4;--row-width:50%"></i>
+        <i class="boot-code-row" style="--row:5;--row-width:70%"></i>
+      </div>
+      <div class="boot-preview">
+        <svg class="boot-preview-mark" viewBox="0 0 48 48" focusable="false" aria-hidden="true"><path d="M17 12 8 24l9 12M31 12l9 12-9 12M27 9 21 39" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="square" stroke-linejoin="miter"/></svg>
+        <i class="boot-preview-title"></i>
+        <i class="boot-preview-line" style="--preview-width:84%"></i>
+        <i class="boot-preview-line" style="--preview-width:58%"></i>
+      </div>
+    </div>
+    <span class="boot-kicker">CREATE / PREVIEW / REFINE</span>
+    <h1 class="boot-word" aria-label="Aurora"><span class="boot-letter" style="--i:0" aria-hidden="true">A</span><span class="boot-letter" style="--i:1" aria-hidden="true">u</span><span class="boot-letter" style="--i:2" aria-hidden="true">r</span><span class="boot-letter" style="--i:3" aria-hidden="true">o</span><span class="boot-letter" style="--i:4" aria-hidden="true">r</span><span class="boot-letter" style="--i:5" aria-hidden="true">a</span></h1>
+    <span class="boot-subtitle">从代码到实时预览，继续创作。</span>
+    <span class="boot-rule" aria-hidden="true"></span>
+  </div>
+  <div class="boot-footer"><span id="bootStatus" role="status" aria-live="polite">正在准备你的工作台</span><button id="bootSkip" type="button" title="跳过装饰动效，初始化完成后进入工作台">跳过动效 · Esc</button></div>
+</div>
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="brand-mark"></span><span class="brand-name">Aurora<b>Studio</b></span></div>
+    <button id="projBtn" class="proj-btn" title="切换项目"><i id="projIcon" class="fa-solid fa-code"></i><span id="projName">项目</span><em id="projType">网页</em><i class="fa-solid fa-chevron-down caret"></i></button>
+    <div class="tb-group">
+      <button class="tb" id="btnNew" title="新建项目（模板库）"><i class="fa-solid fa-plus"></i><span>新建</span></button>
+      <button class="tb" id="btnImport" title="导入 HTML / 正则 JSON / 主题 JSON / 项目备份"><i class="fa-solid fa-file-import"></i><span>导入</span></button>
+      <button class="tb" id="btnExport" title="导出"><i class="fa-solid fa-file-export"></i><span>导出</span></button>
+      <button class="tb accent" id="btnCopy" title="一键复制"><i class="fa-solid fa-copy"></i><span>一键复制</span></button>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-group">
+      <button class="tb" id="btnSkin" title="软件美化：选择软件文件夹，自动识别界面并换肤"><i class="fa-solid fa-paintbrush"></i><span>软件美化</span></button>
+      <button class="tb" id="btnRegex" title="正则工具：按格式生成 / 测试正则"><i class="fa-solid fa-wand-magic-sparkles"></i><span>正则工具</span></button>
+      <button class="tb" id="btnHistory" title="版本历史"><i class="fa-solid fa-clock-rotate-left"></i><span>历史</span></button>
+      <button class="tb" id="btnSettings" title="设置：API / 提示词预设 / 偏好"><i class="fa-solid fa-gear"></i><span>设置</span></button>
+      <button class="tb icon" id="btnTheme" title="切换明暗主题"><i class="fa-solid fa-circle-half-stroke"></i></button>
+    </div>
+  </header>
+
+  <main id="workspace">
+    <section id="paneEditor" class="pane">
+      <div class="pane-head">
+        <div class="tabs" id="editorTabs"></div>
+        <div class="pane-acts">
+          <button class="icon" id="btnFormat" title="格式化当前代码 (Shift+Alt+F)"><i class="fa-solid fa-align-left"></i></button>
+          <button class="icon" id="btnWrap" title="自动换行"><i class="fa-solid fa-paragraph"></i></button>
+          <button class="icon" id="btnCopyTab" title="复制当前标签内容"><i class="fa-regular fa-copy"></i></button>
+          <button class="icon" id="btnCollapseEditor" title="收起编辑器"><i class="fa-solid fa-angles-left"></i></button>
+        </div>
+      </div>
+      <div class="pane-body" id="editorBody"></div>
+    </section>
+    <div class="splitter" id="split1"></div>
+
+    <section id="panePreview" class="pane">
+      <div class="pane-head preview-head">
+        <button class="icon ghost-show" id="btnShowEditor" title="展开编辑器"><i class="fa-solid fa-angles-right"></i></button>
+        <div class="seg" id="deviceSeg">
+          <button data-dev="full" title="自适应"><i class="fa-solid fa-expand"></i></button>
+          <button data-dev="desktop" title="桌面 1280"><i class="fa-solid fa-desktop"></i></button>
+          <button data-dev="tablet" title="平板 820"><i class="fa-solid fa-tablet-screen-button"></i></button>
+          <button data-dev="mobile" title="手机 390"><i class="fa-solid fa-mobile-screen"></i></button>
+        </div>
+        <select id="zoomSel" class="mini-select" title="缩放">
+          <option value="fit">适应</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="1.25">125%</option>
+        </select>
+        <div class="seg" id="bgSeg" title="预览背景">
+          <button data-bg="dark" title="深色背景"><i class="fa-solid fa-moon"></i></button>
+          <button data-bg="light" title="浅色背景"><i class="fa-solid fa-sun"></i></button>
+          <button data-bg="grid" title="透明网格"><i class="fa-solid fa-chess-board"></i></button>
+        </div>
+        <div class="tb-spacer"></div>
+        <div class="seg tools" id="toolSeg">
+          <button id="btnPick" title="选择元素：点击预览中的元素，作为 AI 修改目标（Esc 退出）"><i class="fa-solid fa-arrow-pointer"></i><span>选元素</span></button>
+          <button id="btnRegion" title="圈选区域：框选一块区域截图发给 AI"><i class="fa-regular fa-object-group"></i><span>圈区域</span></button>
+          <button id="btnShot" title="截取预览图发给 AI"><i class="fa-solid fa-camera"></i></button>
+        </div>
+        <button class="mini" id="btnRealST" title="真实酒馆：在内置的完整 SillyTavern 里实时测试（状态栏 / 主题 / 插件 / 脚本），效果零误差"><i class="fa-solid fa-beer-mug-empty"></i> 真实酒馆</button>
+        <button class="icon" id="btnReload" title="刷新预览 (Ctrl+S)"><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="icon" id="btnPopout" title="在新窗口打开预览"><i class="fa-solid fa-up-right-from-square"></i></button>
+        <button class="icon" id="btnConsole" title="控制台"><i class="fa-solid fa-terminal"></i><b class="badge" id="consoleBadge"></b></button>
+        <button class="icon ghost-show" id="btnShowSide" title="展开 AI 面板"><i class="fa-solid fa-angles-left"></i></button>
+      </div>
+      <div class="preview-stage" id="stage" data-bg="dark">
+        <div class="device" id="device"><iframe id="frame" title="preview"></iframe></div>
+        <div id="regionOverlay"><div id="regionBox"></div><div class="region-tip"><i class="fa-regular fa-object-group"></i> 拖拽框选区域 · Esc 取消</div></div>
+        <div id="pickTip" class="pick-tip"><i class="fa-solid fa-arrow-pointer"></i> 点击元素添加为 AI 目标 · 按住 Shift 连续选择 · Esc 退出</div>
+      </div>
+      <div id="consolePanel">
+        <div class="console-head"><span><i class="fa-solid fa-terminal"></i> 控制台</span><div class="tb-spacer"></div>
+          <button class="mini" id="btnFixErr"><i class="fa-solid fa-wand-magic-sparkles"></i> 让 AI 修复报错</button>
+          <button class="mini" id="btnClearConsole"><i class="fa-solid fa-ban"></i> 清空</button>
+          <button class="icon" id="btnCloseConsole"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="console-body" id="consoleBody"></div>
+      </div>
+    </section>
+    <div class="splitter" id="split2"></div>
+
+    <section id="paneSide" class="pane">
+      <div class="pane-head">
+        <div class="tabs" id="sideTabs">
+          <button class="tab active" data-side="chat"><i class="fa-solid fa-wand-magic-sparkles"></i>AI 助手</button>
+          <button class="tab" data-side="design"><i class="fa-solid fa-palette"></i>设计</button>
+        </div>
+        <div class="pane-acts">
+          <button class="icon" id="btnCollapseSide" title="收起面板"><i class="fa-solid fa-angles-right"></i></button>
+        </div>
+      </div>
+      <div class="pane-body side-body">
+        <div class="side-view active" id="viewChat">
+          <div class="chat-bar">
+            <button class="model-btn" id="modelBtn" title="切换 API / 模型"><span class="dot"></span><span id="modelName">未配置 API</span><i class="fa-solid fa-chevron-down"></i></button>
+            <div class="tb-spacer"></div>
+            <button class="icon" id="btnSysPreset" title="系统提示词预设"><i class="fa-solid fa-masks-theater"></i></button>
+            <button class="icon" id="btnClearChat" title="清空对话"><i class="fa-solid fa-broom"></i></button>
+          </div>
+          <div class="chat-list" id="chatList"></div>
+          <div class="composer">
+            <div class="chips" id="quickChips"></div>
+            <div class="attach-row" id="attachRow"></div>
+            <div class="input-wrap">
+              <textarea id="chatInput" rows="3" placeholder="描述你想要的效果，例如：把状态栏做成日系手账风，加入淡入动画……&#10;Enter 发送 · Shift+Enter 换行 · 可粘贴图片"></textarea>
+              <div class="input-tools">
+                <button class="icon" id="btnAttachImg" title="添加参考图 / 设计稿"><i class="fa-regular fa-image"></i></button>
+                <button class="toggle" id="tgCode" title="附带当前代码"><i class="fa-solid fa-code"></i>代码</button>
+                <button class="toggle" id="tgShot" title="发送时自动附带预览截图（需模型支持识图）"><i class="fa-solid fa-camera"></i>截图</button>
+                <button class="toggle" id="tgDom" title="附带运行后的实时 DOM"><i class="fa-solid fa-sitemap"></i>DOM</button>
+                <button class="toggle" id="tgStyle" title="设计风格"><i class="fa-solid fa-swatchbook"></i><span id="styleLabel">风格</span></button>
+                <div class="tb-spacer"></div>
+                <button class="send" id="btnSend" title="发送"><i class="fa-solid fa-paper-plane"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="side-view" id="viewDesign"></div>
+      </div>
+    </section>
+  </main>
+  <footer id="statusbar">
+    <span id="sbSave"><i class="fa-solid fa-circle-check"></i> 已保存</span>
+    <span id="sbInfo"></span>
+    <div class="tb-spacer"></div>
+    <span id="sbCursor"></span>
+    <span id="sbSize"></span>
+  </footer>
+</div>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script src="js/aurora-splash.js"></script>
+<script src="js/aurora-layout.js"></script>
+<script src="lib/jquery.min.js"></script>
+<script src="lib/codemirror.bundle.js"></script>
+<script src="lib/beautifier.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/tpl-more.js"></script>
+<script src="js/tpl-shop.js"></script>
+<script src="js/tpl-site.js"></script>
+<script src="js/tpl-lead.js"></script>
+<script src="js/tpl-r4a.js"></script>
+<script src="js/tpl-r4b.js"></script>
+<script src="js/tpl-r6a.js"></script>
+<script src="js/tpl-r6b.js"></script>
+<script src="js/tpl-r6c.js"></script>
+<script src="js/tpl-r6d.js"></script>
+<script src="js/stmock.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/fx/motion.js"></script>
+<script src="js/fx/visual.js"></script>
+<script src="js/fx/components.js"></script>
+<script src="js/fx/deco.js"></script>
+<script src="js/fx/styles.js"></script>
+<script src="js/fx/pack-st.js"></script>
+<script src="js/fx/pack-atmos.js"></script>
+<script src="js/fx/pack-more.js"></script>
+<script src="js/fx/pack-splash.js"></script>
+<script src="js/fx/pack-interact.js"></script>
+<script src="js/fx/pack-interact2.js"></script>
+<script src="js/fx/pack-r4.js"></script>
+<script src="js/fx/pack-r6a.js"></script>
+<script src="js/fx/pack-r6b.js"></script>
+<script src="js/fx/pack-r6c.js"></script>
+<script src="js/preview.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/fxui.js"></script>
+<script src="js/appskin.js"></script>
+<script src="js/scriptlab-mock.js"></script>
+<script src="js/scriptlab.js"></script>
+<script src="js/app.js"></script>
+<script src="js/realst.js"></script>
+<script src="js/toolhub.js"></script>
+<script src="js/preset.js"></script>
+<script src="js/stsrc.js"></script>
+<script src="js/publish.js"></script>
+<script src="js/charcard.js"></script>
+<script src="js/novel.js"></script>
+<script src="js/worldbook.js"></script>
+<script src="js/mvu.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/findreplace.js"></script>
+<script src="js/appskin2.js"></script>
+<script src="js/updater.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/layout-render.js"></script>
+<script src="js/layout-canvas.js"></script>
+<script src="js/layout-ui.js"></script>
+<script src="js/layout-props.js"></script>
+<script src="js/gallery6.js"></script>
+<script src="js/agents-data.js"></script>
+<script src="js/agents.js"></script>
+<script src="js/agents-ui.js"></script>
+<script src="js/agents-coll.js"></script>
+<script src="js/paint.js"></script>
+<script src="js/paint-tools.js"></script>
+<script src="js/paint-ui.js"></script>
+<script src="js/lp7.js"></script>
+<script src="js/lp7-render.js"></script>
+<script src="js/lp7-ui.js"></script>
+<script src="js/paint7.js"></script>
+<script src="js/agents7.js"></script>
+<script src="js/fx/pack-r7a.js"></script>
+<script src="js/fx/pack-r7b.js"></script>
+<script src="js/tpl-r7.js"></script>
+<script src="js/gallery7.js"></script>
+<script src="js/st7.js"></script>
+<script src="js/regex7.js"></script>
+<script src="js/st8.js"></script>
+<script src="js/agents8.js"></script>
+<script src="js/preset8.js"></script>
+<script src="js/gen9.js"></script>
+<script src="js/st9.js"></script>
+<script src="js/zoom9.js"></script>
+<script src="js/keep10.js"></script>
+<script src="js/len10.js"></script>
+<script src="js/tpl10.js"></script>
+<script src="js/ai10.js"></script>
+<script src="js/gr10.js"></script>
+<script src="js/pe10.js"></script>
+<script src="js/cc10.js"></script>
+<script src="js/wb10.js"></script>
+<script src="js/outlet12.js"></script>
+<script src="js/lb12.js"></script>
+<script src="js/cp12.js"></script>
+<script src="js/tc12.js"></script>
+<script src="js/core7.js"></script>
+<script src="js/base13.js"></script>
+<script src="js/studio13.js"></script>
+<script src="js/chat13.js"></script>
+<script src="js/proj13.js"></script>
+<script src="js/cc13.js"></script>
+<script src="js/wb13.js"></script>
+<script src="js/pe13.js"></script>
+<script src="js/lab13.js"></script>
+<script src="js/art13.js"></script>
+<script src="js/sys13.js"></script>
+<script src="js/gc13.js"></script>
+<script src="js/cp13.js"></script>
+<script src="js/tb13.js"></script>
+<script src="js/qol13.js"></script>
+<script src="js/base14.js"></script><!--v14-->
+<script src="js/studio14.js"></script><!--v14-->
+<script src="js/chat14.js"></script><!--v14-->
+<script src="js/cc14.js"></script><!--v14-->
+<script src="js/wb14.js"></script><!--v14-->
+<script src="js/pe14.js"></script><!--v14-->
+<script src="js/lab14.js"></script><!--v14-->
+<script src="js/art14.js"></script><!--v14-->
+<script src="js/proj14.js"></script><!--v14-->
+<script src="js/sys14.js"></script><!--v14-->
+<script src="js/gc14.js"></script><!--v14-->
+<script src="js/tb14.js"></script><!--v14-->
+<script src="js/cp14.js"></script><!--v14-->
+<script src="js/fix14.js"></script><!--v14-->
+<script src="js/qol14.js"></script><!--v14-->
+<script src="js/base15.js"></script><!--v15-->
+<script src="js/rv15.js"></script><!--v15-->
+<script src="js/ref15.js"></script><!--v15-->
+<script src="js/link15.js"></script><!--v15-->
+<script src="js/wb15.js"></script><!--v15-->
+<script src="js/qr15.js"></script><!--v15-->
+<script src="js/st15.js"></script><!--v15-->
+<script src="js/plug15.js"></script><!--v15-->
+<script src="js/cc15.js"></script><!--v15-->
+<script src="js/hub15.js"></script><!--v15-->
+<script src="js/win15.js"></script><!--v15-->
+<script src="js/fix15.js"></script><!--v15-->
+<script src="js/qol15.js"></script><!--v15-->
+<script src="js/mkt16.js"></script><!--v16-->
+<script src="js/fe16.js"></script><!--v16-->
+<script src="js/stchk16.js"></script><!--v16-->
+<script src="js/snip16.js"></script><!--v16-->
+<script src="js/qol16.js"></script><!--v16-->
+<script src="js/fix17.js"></script><!--v17-->
+<script src="js/file17.js"></script><!--v17-->
+<script src="js/art/reg.js"></script><!--v18-->
+<script src="js/art/k-ink.js"></script><!--v19-->
+<script src="js/art/k-cyber.js"></script><!--v19-->
+<script src="js/art/k-tarot.js"></script><!--v19-->
+<script src="js/art/k-sonar.js"></script><!--v19-->
+<script src="js/art/k-dossier.js"></script><!--v19-->
+<script src="js/art/k-journal.js"></script><!--v19-->
+<script src="js/art/k-grimoire.js"></script><!--v19-->
+<script src="js/art/k-synth.js"></script><!--v19-->
+<script src="js/art/k-scp.js"></script><!--v19-->
+<script src="js/art/k-brass.js"></script><!--v19-->
+<script src="js/art/k-pixel.js"></script><!--v19-->
+<script src="js/art/k-glass.js"></script><!--v19-->
+<script src="js/art/k-hud.js"></script><!--v19-->
+<script src="js/art/k-hanafuda.js"></script><!--v19-->
+<script src="js/art/k-tape.js"></script><!--v19-->
+<script src="js/art/k-phone.js"></script><!--v19-->
+<script src="js/art/k-papercut.js"></script><!--v19-->
+<script src="js/art/k-aurora.js"></script><!--v19-->
+<script src="js/art/k-popup.js"></script><!--v19-->
+<script src="js/art/k-waste.js"></script><!--v19-->
+<script src="js/art/k-cafe.js"></script><!--v19-->
+<script src="js/art/k-vn.js"></script><!--v19-->
+<script src="js/art/k-dunhuang.js"></script><!--v19-->
+<script src="js/art/k-neonrain.js"></script><!--v19-->
+<script src="js/art/gen.js"></script><!--v18-->
+<script src="js/art/orn.js"></script><!--v18-->
+<script src="js/art/scene.js"></script><!--v18-->
+<script src="js/art18.js"></script><!--v18-->
+<script src="js/fix18a.js"></script><!--v18-->
+<script src="js/fix18b.js"></script><!--v18-->
+<script src="js/fix18c.js"></script><!--v18-->
+<script src="js/fix18d.js"></script><!--v18-->
+<script src="js/mp18.js"></script><!--v18-->
+<script src="js/aurora-workbench.js"></script>
+<script src="js/aurora-pages.js"></script>
+<script src="js/aurora-pages-chrome.js"></script>
+<script src="js/aurora-pages-settings.js"></script>
+<script src="js/aurora-pages-assets.js"></script>
+<script src="js/aurora-pages-creation.js"></script>
+<script src="js/aurora-pages-workflows.js"></script>
+<script src="js/aurora-orrery.js"></script>
+</body>
+</html>

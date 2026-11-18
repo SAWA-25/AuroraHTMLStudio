@@ -40,138 +40,100 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 */
 import { createRoot } from 'react-dom/client';
-import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion';
+import { flushSync } from 'react-dom';
+import { MotionConfig, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Home } from './Home.jsx';
-import { Listen } from './Listen.jsx';
 import { enterLegacyView, installLegacyBridge, isNativeTourPending, runLegacyAction } from './legacy.js';
-import { brushPath } from './geometry.js';
-import { isNativeWindowMode, isPresentationReady, isolateLegacyFocus, shouldExitPresentation } from './presentationSafety.js';
+import { isNativeWindowMode, isPresentationReady, isolateLegacyFocus } from './presentationSafety.js';
 import './orrery.css';
-import './letter.css';
 
 const VIEW_KEY = 'orrery-view';
-const NIGHT_KEY = 'orrery-night';
-const VALID_VIEWS = new Set(['home', 'chat', 'listen', 'workspace']);
-
-function readStorage(key) {
-  try { return window.localStorage.getItem(key); }
-  catch (error) { console.warn(`[orrery] unable to read ${key}`, error); return null; }
-}
-
-function writeStorage(key, value) {
-  try { window.localStorage.setItem(key, value); return true; }
-  catch (error) { console.warn(`[orrery] unable to persist ${key}`, error); return false; }
-}
-
 function readView() {
-  const candidate = readStorage(VIEW_KEY);
-  return VALID_VIEWS.has(candidate) ? candidate : 'home';
+  try { return window.localStorage.getItem(VIEW_KEY) === 'workspace' ? 'workspace' : 'home'; }
+  catch (error) { console.warn('[studio] unable to read last view', error); return 'home'; }
 }
-
-function readNight() {
-  return readStorage(NIGHT_KEY) === 'true';
-}
-
-function PageMark({ view, onNavigate }) {
-  if (view === 'home' || view === 'workspace') return null;
-  return <motion.nav className="orrery-page-mark" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .22 }} aria-label="星盘导航">
-    <button type="button" className="orrery-back" onClick={() => onNavigate('home')} aria-label="返回星盘主页">
-      <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false"><path d="M22 14H6M12 7l-7 7 7 7" /></svg>
-    </button>
-    <span>{view === 'listen' ? 'LISTEN / 一起听' : 'CHAT / 聊天'}</span>
-    <button type="button" className="orrery-home-link" onClick={() => onNavigate('home')}>回到星盘</button>
-  </motion.nav>;
+function saveView(view) {
+  try { window.localStorage.setItem(VIEW_KEY, view); }
+  catch (error) { console.warn('[studio] unable to save last view', error); }
 }
 
 function PresentationApp() {
   const reduced = useReducedMotion();
+  const reducedRef = useRef(Boolean(reduced));
+  reducedRef.current = Boolean(reduced);
   const initialView = useRef(readView());
   const [view, setView] = useState('workspace');
   const viewRef = useRef('workspace');
   const surfaceRef = useRef(null);
   const releaseFocus = useRef(null);
-  const [night, setNight] = useState(readNight);
+  const [night, setNight] = useState(() => !document.documentElement.classList.contains('light'));
   const [bridgeError, setBridgeError] = useState('');
-  const [brushPhase, setBrushPhase] = useState('idle');
-  const brushPhaseRef = useRef('idle');
-  const reducedRef = useRef(Boolean(reduced));
-  reducedRef.current = Boolean(reduced);
+  const transitionRef = useRef(null);
 
-  const commitOpen = useCallback((next) => {
+  const commitOpen = useCallback(next => {
     setBridgeError('');
-    const leavingCover = (viewRef.current === 'home' || viewRef.current === 'listen') && (next === 'workspace' || next === 'chat');
+    const leavingCover = viewRef.current === 'home' && next === 'workspace';
     if (leavingCover) { releaseFocus.current?.(); releaseFocus.current = null; }
     try {
       enterLegacyView(next);
       viewRef.current = next;
       setView(next);
-      writeStorage(VIEW_KEY, next);
+      saveView(next);
       return true;
     } catch (error) {
       if (leavingCover) releaseFocus.current = isolateLegacyFocus(document, surfaceRef.current);
-      setBridgeError(`旧工作台入口暂不可用：${error instanceof Error ? error.message : String(error)}`);
-      console.error('[orrery] legacy bridge failed', error);
+      setBridgeError(`创作入口暂不可用：${error instanceof Error ? error.message : String(error)}`);
+      console.error('[studio] view entry failed', error);
       return false;
     }
   }, []);
 
-  const open = useCallback((nextView = 'home') => {
-    const next = VALID_VIEWS.has(nextView) ? nextView : 'home';
-    if (next === 'chat' && (viewRef.current === 'home' || viewRef.current === 'listen')) {
-      if (reducedRef.current) {
-        brushPhaseRef.current = 'idle';
-        setBrushPhase('idle');
-        return commitOpen('chat');
-      }
-      if (brushPhaseRef.current === 'idle') {
-        setBridgeError('');
-        brushPhaseRef.current = 'cover';
-        setBrushPhase('cover');
-      }
-      return true;
-    }
-    if (brushPhaseRef.current !== 'idle') {
-      brushPhaseRef.current = 'idle';
-      setBrushPhase('idle');
-    }
-    return commitOpen(next);
-  }, [commitOpen]);
-
-  const onBrushAnimationComplete = useCallback(() => {
-    if (brushPhaseRef.current === 'cover') {
-      brushPhaseRef.current = 'reveal';
-      if (commitOpen('chat')) setBrushPhase('reveal');
-      else { brushPhaseRef.current = 'idle'; setBrushPhase('idle'); }
-    } else if (brushPhaseRef.current === 'reveal') {
-      brushPhaseRef.current = 'idle';
-      setBrushPhase('idle');
-    }
+  const open = useCallback((requested = 'home') => {
+    const next = requested === 'workspace' ? 'workspace' : 'home';
+    transitionRef.current?.skipTransition();
+    if (next === viewRef.current || reducedRef.current || !document.startViewTransition || document.hidden) return commitOpen(next);
+    const transition = document.startViewTransition(() => {
+      flushSync(() => commitOpen(next));
+    });
+    transitionRef.current = transition;
+    transition.ready.catch(error => {
+      // Unsupported snapshots must never prevent navigation to the native workspace.
+      console.warn('[studio] canvas transition unavailable', error);
+    });
+    transition.finished.finally(() => { if (transitionRef.current === transition) transitionRef.current = null; });
+    return true;
   }, [commitOpen]);
 
   const handleNavigate = useCallback((target = 'home') => {
-    if (target === 'hold' || target === 'life') {
-      // Native tools own their full-screen surfaces; remove the overlay before invoking them.
-      if (!open('workspace')) return;
-      runLegacyAction(target).then(ok => {
-        if (!ok) {
-          setBridgeError(`原生功能“${target === 'hold' ? '贴贴' : '生活'}”暂不可用，请稍后重试。`);
-        }
-      }).catch(error => {
-        setBridgeError(`原生功能暂不可用：${error instanceof Error ? error.message : String(error)}`);
-        console.error(`[orrery] ${target} action failed`, error);
-      });
-      return;
-    }
-    open(target);
-  }, [open]);
+    if (target === 'home' || target === 'workspace') { open(target); return; }
+    // Menus and dialogs are owned by the original application and must stay interactive.
+    transitionRef.current?.skipTransition();
+    if (!commitOpen('workspace')) return;
+    runLegacyAction(target).then(ok => {
+      if (!ok) setBridgeError('功能暂未就绪，可从工作台侧栏重试。');
+    }).catch(error => {
+      setBridgeError(`功能打开失败：${error.message || String(error)}`);
+      console.error(`[studio] ${target} action failed`, error);
+    });
+  }, [open, commitOpen]);
 
   const toggleNight = useCallback(() => {
-    setNight(current => {
-      const next = !current;
-      writeStorage(NIGHT_KEY, String(next));
-      return next;
-    });
+    const button = document.getElementById('btnTheme');
+    if (!button || button.disabled || typeof button.onclick !== 'function') {
+      setBridgeError('主题切换入口尚未就绪，请稍后重试。');
+      return;
+    }
+    // Invoke the existing theme handler without sending a blocked click into the inert workspace.
+    button.onclick.call(button);
+  }, []);
+
+  useEffect(() => {
+    const update = () => setNight(!document.documentElement.classList.contains('light'));
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    update();
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -184,28 +146,22 @@ function PresentationApp() {
     const maxAttempts = 300;
     const schedule = () => {
       if (disposed || entered || rafId || attempts >= maxAttempts) return;
-      rafId = window.requestAnimationFrame(() => {
-        rafId = 0;
-        tryInstall();
-      });
+      rafId = window.requestAnimationFrame(() => { rafId = 0; tryInstall(); });
     };
     const tryInstall = () => {
       if (disposed || entered) return;
       try {
         if (isNativeWindowMode(document)) return;
-        if (window.__booted && document.querySelector('#rail .rail-top') && !bridgeDispose) {
-          // Install the capture boundary while the native workspace is still visible.
-          bridgeDispose = installLegacyBridge((nextView = 'home') => open(nextView));
-        }
+        if (window.__booted && document.querySelector('#rail .rail-top') && !bridgeDispose) bridgeDispose = installLegacyBridge(open);
         const tourPending = isNativeTourPending();
         if (bridgeDispose && tourPending) {
-          setBridgeError('等待原生新手引导，请先完成或跳过；若引导未出现，请检查原生初始化。');
+          setBridgeError('请先完成或跳过工作台的新手引导。');
           return;
         }
         if (bridgeDispose && document.querySelector('#modalRoot .modal-mask')) return;
         if (!bridgeDispose || !isPresentationReady(document, window.__booted, tourPending)) {
           attempts += 1;
-          if (attempts >= maxAttempts) setBridgeError('原生侧栏仍在启动，星盘入口将在刷新后重试。');
+          if (attempts >= maxAttempts) setBridgeError('工作台仍在启动，可刷新后重试创作起始台。');
           else schedule();
           return;
         }
@@ -220,63 +176,40 @@ function PresentationApp() {
       } catch (error) {
         attempts += 1;
         if (attempts >= maxAttempts) {
-          setBridgeError(`原生入口初始化失败：${error instanceof Error ? error.message : String(error)}`);
-          console.error('[orrery] legacy bridge readiness failed', error);
+          setBridgeError(`创作起始台初始化失败：${error.message || String(error)}`);
+          console.error('[studio] readiness failed', error);
         } else schedule();
       }
     };
     document.body.dataset.orreryMounted = 'true';
-    if (document.body) {
-      observer = new MutationObserver(() => tryInstall());
-      observer.observe(document.body, { childList: true, subtree: true });
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    }
+    observer = new MutationObserver(tryInstall);
+    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryInstall, { once: true });
     tryInstall();
     return () => {
       disposed = true;
+      transitionRef.current?.skipTransition();
       if (rafId) window.cancelAnimationFrame(rafId);
       observer?.disconnect();
       document.removeEventListener('DOMContentLoaded', tryInstall);
       bridgeDispose?.();
       delete document.body.dataset.orreryMounted;
       delete document.body.dataset.orreryView;
-      delete document.body.dataset.orreryNight;
     };
   }, [open]);
 
-  useEffect(() => {
-    document.body.dataset.orreryNight = String(night);
-  }, [night]);
-
-  const covered = view === 'home' || view === 'listen';
   useLayoutEffect(() => {
-    if (!covered) return;
+    if (view !== 'home') return;
     const release = isolateLegacyFocus(document, surfaceRef.current);
     releaseFocus.current = release;
     return () => { release(); releaseFocus.current?.(); releaseFocus.current = null; };
-  }, [covered]);
-
-  useEffect(() => {
-    const onKey = event => {
-      if (shouldExitPresentation(event, viewRef.current, document)) open('home');
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [view]);
 
   return <MotionConfig reducedMotion={reduced ? 'always' : 'never'} transition={{ ease: [0.22, 1, 0.36, 1] }}>
-    <div ref={surfaceRef} tabIndex={-1} inert={brushPhase !== 'idle'} className={`orrery-app orrery-view-${view} ${night ? 'orrery-night' : 'orrery-day'}`} data-testid="orrery-app">
-      {covered && <AnimatePresence mode="wait" initial={false}>
-        {view === 'home' && <Home key="home" night={night} onToggleNight={toggleNight} onNavigate={handleNavigate} />}
-        {view === 'listen' && <Listen key="listen" active />}
-      </AnimatePresence>}
-      <PageMark view={view} onNavigate={handleNavigate} />
-      {brushPhase !== 'idle' && <svg className="orrery-brush-transition" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
-        <defs><clipPath id="orrery-brush-clip" clipPathUnits="userSpaceOnUse"><motion.path d={brushPath(brushPhase === 'cover' ? 0 : 1)} initial={{ d: brushPath(0) }} animate={{ d: brushPhase === 'cover' ? [brushPath(0), brushPath(.5), brushPath(1)] : [brushPath(1), brushPath(.5), brushPath(0)] }} transition={{ duration: .72, times: [0, .48, 1], ease: 'easeInOut' }} onAnimationComplete={onBrushAnimationComplete} /></clipPath></defs>
-        <rect width="1000" height="1000" fill="var(--orr-blue)" clipPath="url(#orrery-brush-clip)" />
-      </svg>}
-      {bridgeError && <div className="orrery-bridge-error" role="status"><span>{bridgeError}</span><button type="button" onClick={() => setBridgeError('')}>关闭</button></div>}
+    <div ref={surfaceRef} tabIndex={-1} className={`orrery-app studio-view-${view}`} data-testid="orrery-app">
+      {view === 'home' && <Home night={night} onToggleNight={toggleNight} onNavigate={handleNavigate}/>}
+      {bridgeError && <div className="orrery-bridge-error" role="alert"><span>{bridgeError}</span><button type="button" onClick={() => setBridgeError('')}>关闭</button></div>}
     </div>
   </MotionConfig>;
 }
@@ -284,8 +217,7 @@ function PresentationApp() {
 function mount() {
   const existing = document.getElementById('aurora-orrery-root');
   const rootElement = existing || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'aurora-orrery-root' }));
-  createRoot(rootElement).render(<PresentationApp />);
+  createRoot(rootElement).render(<PresentationApp/>);
 }
-
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
 else mount();

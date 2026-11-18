@@ -1,0 +1,76 @@
+{
+  "revision": "7.7.0-studio-bc",
+  "date": "2026-11-19",
+  "scope": "Source and four application resource replacements for existing Aurora HTML Studio 7.7.0. Not a complete installation or an automatic-update Release.",
+  "baseCommit": "747334d4b6e7e723aae2ebcb5bcb46f9e0861567",
+  "checks": {
+    "frontendTests": 40,
+    "frontendFailed": 0,
+    "desktop": "1440x900",
+    "mobile": "390x844",
+    "browserEvidence": "Targeted isolated browser smoke checks; not full application release gates."
+  },
+  "files": {
+    "frontend/src/Home.jsx": {
+      "bytes": 9305,
+      "sha256": "8004b2cc20db0bcd3742972c03327fac3090c309d19b5a7e2f6246b458c0ce1f"
+    },
+    "frontend/src/main.jsx": {
+      "bytes": 10150,
+      "sha256": "5c125c98e4665eb44da3b2653301c1eb3d382bb78cb856dd57e65354d3e6af3f"
+    },
+    "frontend/src/legacy.js": {
+      "bytes": 8900,
+      "sha256": "d80a79aa10c241270d0fbf83df51ddcf265a4321470e4d31800b4d83b3bd6a71"
+    },
+    "frontend/src/orrery.css": {
+      "bytes": 14231,
+      "sha256": "28ceb32b932dfde22ec4bef2d3121e549cbe33a00aa66479a7d0aaf07bd135d4"
+    },
+    "frontend/src/studioProject.js": {
+      "bytes": 6522,
+      "sha256": "4164bbd7d2842da2a31a25659f26f88b8165f55cfc05dd2287e782733d7e958c"
+    },
+    "frontend/test/legacy.test.mjs": {
+      "bytes": 15946,
+      "sha256": "c38d6b30ceb3c3134665853770385733098d3c16c043d65e33fe152da1ed1784"
+    },
+    "frontend/test/studio.test.mjs": {
+      "bytes": 3874,
+      "sha256": "ac15de2bdcf63872bc0bc6e30bd64555b32733e3ecaf3acc03508322f4de30c5"
+    },
+    "dist/app/index.html": {
+      "bytes": 30051,
+      "sha256": "d5f369ac38bb985c071da819fa4d25444437c7bf4758b0a785e193fbca38f3d0"
+    },
+    "dist/app/css/aurora-atlas.css": {
+      "bytes": 24276,
+      "sha256": "21705d4dcef9bdfe7f223a0bbfe7610b55a63aae47c640a8781ac147650877a0"
+    },
+    "dist/app/css/aurora-orrery.css": {
+      "bytes": 12465,
+      "sha256": "379bd7b27952ae7c9d07ce279f0ca87b2c46f7b6e9c29db12c579ad11bea4f70"
+    },
+    "dist/app/js/aurora-orrery.js": {
+      "bytes": 341349,
+      "sha256": "47311ccd70de7393bce67a2dd94a42cfa9ba012400f6abe0e9828e4d0ff704c4"
+    },
+    "dist/使用说明.txt": {
+      "bytes": 79031,
+      "sha256": "797cce7fcaf49c2ab836e201b3fb578d9c723fe931434b3feab188dafea662ef"
+    }
+  },
+  "changes": [
+    "Real native project home and recent projects",
+    "Unified native theme and functional entrypoints",
+    "Code-to-canvas opening and bidirectional canvas transition",
+    "Sandboxed static preview without script or external requests"
+  ],
+  "protected": [
+    "data",
+    "st",
+    "browser profiles",
+    "launcher",
+    "shortcut"
+  ]
+}

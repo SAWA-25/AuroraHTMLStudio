@@ -1,0 +1,438 @@
+/* Aurora Atlas — a single paper-and-ink language for the native workbench.
+   Presentation only: controls, project data, workspace layout and preview documents stay intact. */
+:root {
+  --atlas-serif: "Cormorant Garamond", "Noto Serif SC", "Songti SC", Georgia, serif;
+  --atlas-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  --ui-serif: var(--atlas-serif);
+  --mono: var(--atlas-mono);
+  --bg0: #121316;
+  --bg1: #1a1b1e;
+  --bg2: #222326;
+  --bg3: #2b2c30;
+  --bg4: #35363a;
+  --tx: #ECE9E1;
+  --tx2: #c8c5be;
+  --tx3: #a09e98;
+  --line: rgba(236, 233, 225, .12);
+  --line2: rgba(236, 233, 225, .24);
+  --ac: #FFF3C4;
+  --ac2: #FFF3C4;
+  --ac3: #e5d9ac;
+  --acg: linear-gradient(135deg, #FFF3C4, #FFF3C4);
+  --ac-soft: rgba(255, 243, 196, .12);
+  --ac-glow: rgba(255, 243, 196, .12);
+  --on-ac: #121316;
+  --atlas-ac: #FFF3C4;
+  --atlas-ac2: #FFF3C4;
+  --atlas-ac3: #e5d9ac;
+  --atlas-acg: linear-gradient(135deg, #FFF3C4, #FFF3C4);
+  --atlas-ac-soft: rgba(255, 243, 196, .12);
+  --atlas-ac-glow: rgba(255, 243, 196, .12);
+  --atlas-on-ac: #121316;
+  --atlas-ink: #FFF3C4;
+  --atlas-faint: rgba(236, 233, 225, .045);
+  --shadow: none;
+  --surface: var(--bg1);
+  --atlas-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.24'/%3E%3C/svg%3E");
+  --r: 3px;
+  --r2: 4px;
+  --font: "Inter", "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html.light {
+  --bg0: #ECE9E1;
+  --bg1: #f2efe8;
+  --bg2: #f8f6f0;
+  --bg3: #e5e2da;
+  --bg4: #dad7cf;
+  --tx: #121316;
+  --tx2: #393a3c;
+  --tx3: #5e5e5c;
+  --line: rgba(18, 19, 22, .13);
+  --line2: rgba(18, 19, 22, .24);
+  --ac: #0D2BD8;
+  --ac2: #0D2BD8;
+  --ac3: #0920a9;
+  --acg: linear-gradient(135deg, #0D2BD8, #0D2BD8);
+  --ac-soft: rgba(13, 43, 216, .09);
+  --ac-glow: rgba(13, 43, 216, .10);
+  --on-ac: #ECE9E1;
+  --atlas-ac: #0D2BD8;
+  --atlas-ac2: #0D2BD8;
+  --atlas-ac3: #0920a9;
+  --atlas-acg: linear-gradient(135deg, #0D2BD8, #0D2BD8);
+  --atlas-ac-soft: rgba(13, 43, 216, .09);
+  --atlas-ac-glow: rgba(13, 43, 216, .10);
+  --atlas-on-ac: #ECE9E1;
+  --atlas-ink: #0D2BD8;
+  --atlas-faint: rgba(18, 19, 22, .035);
+  --shadow: none;
+  --surface: var(--bg2);
+  color-scheme: light;
+}
+
+/* Matte paper, ruled edges and a restrained drafting grid. */
+body.shell-v5 #app { background: var(--bg0); }
+body.shell-v5 #app::after {
+  content: "";
+  opacity: .18;
+  background-image: var(--atlas-grain), repeating-linear-gradient(0deg, transparent 0 4px, rgba(236,233,225,.035) 4px 5px);
+  background-size: 180px 180px, auto;
+  background-blend-mode: soft-light, normal;
+  mix-blend-mode: normal;
+}
+html.light body.shell-v5 #app::after { opacity: .18; mix-blend-mode: multiply; }
+html[data-backdrop="plain"] body.shell-v5 #app::after { opacity: 0; }
+body.shell-v5 :is(#topbar, #rail, #statusbar, .pane, .pane-head, .composer, .chat-bar, .modal, .modal-head, .dropmenu, .shell-pal) {
+  transition: background-color 240ms cubic-bezier(.22,1,.36,1), border-color 240ms cubic-bezier(.22,1,.36,1), color 180ms ease;
+}
+body.shell-v5 :is(.primary, .send, .tb.accent) { box-shadow: none; }
+body.shell-v5 :is(.primary, .tb.accent), body.aurora-pages #modalRoot .primary { color: var(--on-ac) !important; }
+body.shell-v5 #modalRoot :is(.mkt16-tab.on, .pt-mask-bar button.on, .pt-gen) { color: var(--on-ac); }
+body.shell-v5 :is(.btn, button.mini, .modal-foot button) { box-shadow: none; background: var(--bg3); border-radius: 3px; }
+body.shell-v5 :is(button.icon, .tb, .proj-btn, .model-btn, .mini-select, .seg, .seg button, .input, .chip, .att, .input-wrap, .toggle, .send, .msg .ctx span, .codeblock, .cb-acts button, .dz-sec, .pal, .var-row input[type="text"], .swatch-in, .rail-btn, .shell-search) { border-radius: 3px; }
+body.shell-v5 :is(.input, select.input, textarea.input, .mini-select) { background: var(--bg1); box-shadow: none; border-radius: 3px; }
+body.shell-v5 :is(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+body.shell-v5 :is(.input, textarea.input):focus { box-shadow: 0 0 0 2px var(--ac-soft); }
+body.shell-v5 :is(.dropmenu, .shell-pal, .toast) { background: var(--bg2); border-radius: 3px; backdrop-filter: none; }
+body.shell-v5 .dropmenu button:hover { background: var(--ac-soft); color: var(--ac); }
+body.shell-v5 .dropmenu button:hover :is(i, em) { color: inherit; }
+body.shell-v5 .dropmenu button.danger,
+body.shell-v5 .dropmenu button.danger:hover { color: var(--err); }
+body.shell-v5 .dropmenu button.danger:hover { background: color-mix(in srgb, var(--err) 10%, var(--bg2)); }
+body.shell-v5 .modal { background: var(--bg1); border: 1px solid var(--line2); border-radius: 3px; box-shadow: none; }
+body.shell-v5 #modalRoot .modal-mask { background: rgba(18,19,22,.72); backdrop-filter: none; }
+html.light body.shell-v5 #modalRoot .modal-mask { background: rgba(18,19,22,.42); }
+body.shell-v5 .modal-head { background: transparent; border-bottom-color: var(--line); }
+body.shell-v5 .modal-title { font-family: var(--atlas-serif); letter-spacing: .015em; }
+body.shell-v5 .modal-foot { background: var(--bg1); border-top-color: var(--line); }
+body.shell-v5 #modalRoot .modal-foot button { border-radius: 3px; }
+body.shell-v5 #modalRoot .modal-foot button.primary { background: var(--acg) !important; color: var(--on-ac) !important; box-shadow: none !important; }
+
+/* Native editor and live preview: frame the tools, never recolor user preview documents. */
+body.aurora-workbench #rail { background: var(--bg1); border-right-color: var(--line); }
+body.aurora-workbench .aw-nav-head { gap: 10px; }
+body.aurora-workbench .aw-nav-head::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 78px;
+  margin: 4px 0 -4px;
+  border-block: 1px solid var(--line);
+  background:
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 14px 14px,
+    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 14px 14px,
+    linear-gradient(90deg, transparent 0 69%, var(--ac) 69% 70%, transparent 70%),
+    linear-gradient(var(--bg2), var(--bg2));
+  opacity: .72;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+  animation: atlas-margin-in 520ms cubic-bezier(.22,1,.36,1) both;
+}
+html[data-rail="icons"] body.aurora-workbench .aw-nav-head::after { display: none; }
+body.aurora-workbench #rail .brand-mark {
+  position: relative;
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  background: var(--bg2);
+  box-shadow: none;
+}
+body.aurora-workbench #rail .brand-mark::before,
+body.aurora-workbench #rail .brand-mark::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  width: 6px;
+  height: 13px;
+  border-block: 1px solid var(--ac);
+}
+body.aurora-workbench #rail .brand-mark::before { left: 5px; border-left: 1px solid var(--ac); }
+body.aurora-workbench #rail .brand-mark::after { right: 5px; border-right: 1px solid var(--ac); }
+body.aurora-workbench #rail .brand-name { font-size: 26px; letter-spacing: -.045em; font-family: var(--atlas-serif); }
+body.aurora-workbench #rail .brand-name b { color: var(--tx2); }
+body.aurora-workbench .aw-edition { color: var(--tx3); letter-spacing: .14em; }
+body.aurora-workbench #rail :is(.rail-btn, .shell-search),
+body.aurora-workbench .aw-create .tb { border-radius: 3px; }
+body.aurora-workbench #rail .rail-btn:hover { background: var(--atlas-faint); border-color: transparent; }
+body.aurora-workbench #rail [data-rail="projects"] { background: var(--ac-soft); border-color: transparent; }
+body.aurora-workbench #rail .rail-bottom { border-top-color: var(--line); }
+body.aurora-workbench .aw-nav-label { letter-spacing: .16em; font-weight: 500; }
+body.aurora-workbench #topbar { background: transparent; }
+body.aurora-workbench #topbar .aw-delivery .tb { border-radius: 3px; }
+body.aurora-workbench .aw-eyebrow { color: var(--tx3); letter-spacing: .16em; }
+body.aurora-workbench #projName { font-size: 23px; letter-spacing: -.015em; font-family: var(--atlas-serif); }
+body.aurora-workbench .aw-section-number { font-family: var(--atlas-mono); }
+body.aurora-workbench .aw-canvas-heading h1 { font-family: var(--atlas-serif); font-weight: 400; letter-spacing: .025em; }
+body.aurora-workbench #layoutSeg { border-radius: 3px; background: transparent; }
+body.aurora-workbench #layoutSeg button { border-radius: 2px; }
+body.aurora-workbench #workspace .pane { border-radius: 3px; box-shadow: none; border-color: var(--line2); background: var(--bg1); }
+body.aurora-workbench #workspace .pane-head { background: transparent; border-bottom-color: var(--line); }
+body.aurora-workbench #workspace .pane-head::after { opacity: .3; }
+body.aurora-workbench #editorBody .CodeMirror { background: var(--bg1); }
+body.aurora-workbench #editorBody .CodeMirror-gutters { background: var(--bg1) !important; border-right-color: var(--line); }
+body.aurora-workbench #statusbar { background: transparent; color: var(--tx3); }
+body.aurora-workbench .preview-head { border-bottom-color: var(--line); }
+body.aurora-workbench .device.framed { border-radius: 3px; box-shadow: 0 0 0 1px var(--line2); }
+
+/* Editorial AI record: distinct authorship, a ruled spine and native actionable blocks. */
+body.shell-v5 #paneSide .chat-list { gap: 19px; padding-inline: 17px; counter-reset: atlas-message; }
+body.shell-v5 #paneSide .msg { position: relative; gap: 5px; counter-increment: atlas-message; animation: atlas-message-in 260ms cubic-bezier(.22,1,.36,1) both; }
+body.shell-v5 #paneSide .msg .who::before { content: counter(atlas-message, decimal-leading-zero); margin-right: 4px; color: var(--ac); font: 9px/1.5 var(--atlas-mono); }
+body.shell-v5 #paneSide .msg .bubble { line-height: 1.82; box-shadow: none; min-width: 0; }
+body.shell-v5 #paneSide .msg.ai .bubble {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--line2);
+  border-radius: 0;
+  padding: 2px 0 10px 12px;
+}
+body.shell-v5 #paneSide .msg.user { align-items: stretch; }
+body.shell-v5 #paneSide .msg.user .bubble {
+  align-self: flex-end;
+  max-width: 94%;
+  background: transparent;
+  border: 0;
+  border-right: 2px solid var(--ac);
+  border-radius: 0;
+  padding: 2px 12px 8px 0;
+}
+body.shell-v5 #paneSide .msg .who { color: var(--tx3); font: 9px/1.5 var(--atlas-mono); letter-spacing: .12em; text-transform: uppercase; }
+body.shell-v5 #paneSide .msg.ai .who { padding-left: 12px; }
+body.shell-v5 #paneSide .msg.user .who { justify-content: flex-end; }
+body.shell-v5 #paneSide .msg .who .av { background: transparent; border: 1px solid var(--line2); color: var(--ac); border-radius: 2px; box-shadow: none; }
+body.shell-v5 #paneSide .msg .ctx span { border-radius: 2px; background: var(--bg3); }
+body.shell-v5 #paneSide .msg-acts { padding-left: 12px; }
+body.shell-v5 #paneSide .msg-acts button { border-radius: 2px; }
+body.shell-v5 #paneSide .bubble blockquote { background: transparent; border-left: 1px solid var(--ac); border-radius: 0; }
+body.shell-v5 #paneSide .bubble code { color: var(--ac); border-radius: 2px; }
+body.shell-v5 #paneSide .bubble a { color: var(--ac); }
+body.shell-v5 #paneSide .codeblock { border-radius: 2px; background: var(--bg0); }
+body.shell-v5 #paneSide .cb-head { background: var(--bg2); }
+body.shell-v5 #paneSide .cb-acts button { border-radius: 2px; }
+body.shell-v5 #paneSide .cb-acts button:hover { background: var(--ac); color: var(--on-ac); }
+body.shell-v5 #paneSide .applied-bar { border-radius: 2px; }
+body.shell-v5 #paneSide .welcome { position: relative; padding-top: 20px; }
+body.shell-v5 #paneSide .welcome::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 72px;
+  margin-bottom: 13px;
+  border-block: 1px solid var(--line);
+  background:
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, transparent 0 72%, var(--ac) 72% 73%, transparent 73%),
+    linear-gradient(var(--bg1), var(--bg1));
+  opacity: .75;
+  pointer-events: none;
+  animation: atlas-margin-in 500ms cubic-bezier(.22,1,.36,1) both;
+}
+body.shell-v5 #paneSide .welcome .wl-logo { position: relative; background: var(--bg2); box-shadow: none; border: 1px solid var(--line2); border-radius: 2px; }
+body.shell-v5 #paneSide .welcome .wl-logo::before,
+body.shell-v5 #paneSide .welcome .wl-logo::after { content: ""; position: absolute; top: 11px; width: 9px; height: 27px; border-block: 1px solid var(--ac); }
+body.shell-v5 #paneSide .welcome .wl-logo::before { left: 9px; border-left: 1px solid var(--ac); }
+body.shell-v5 #paneSide .welcome .wl-logo::after { right: 9px; border-right: 1px solid var(--ac); }
+body.shell-v5 #paneSide .welcome h2 { font-family: var(--atlas-serif); font-size: 22px; font-weight: 400; }
+body.shell-v5 #paneSide .welcome .wl-grid button { background: transparent; border-color: var(--line2); border-radius: 3px; box-shadow: none; }
+body.shell-v5 #paneSide .welcome .wl-grid button:hover { background: var(--atlas-faint); border-color: var(--ac); box-shadow: none; }
+body.shell-v5 #paneSide .composer { background: var(--bg1); border-top-color: var(--line); }
+body.shell-v5 #paneSide .input-wrap { border-radius: 3px; background: var(--bg2); box-shadow: none; }
+body.shell-v5 #paneSide .input-wrap:focus-within { border-color: var(--ac); box-shadow: 0 0 0 2px var(--ac-soft); }
+body.shell-v5 #paneSide .chip { border-radius: 2px; }
+body.shell-v5 .send { border-radius: 2px; box-shadow: none; }
+body.shell-v5 .send:not(.stop) { background: var(--acg) !important; color: var(--on-ac); }
+body.shell-v5 .toggle { border-radius: 2px; }
+
+/* Interior pages retain their real forms, tools, canvases and semantic states. */
+body.aurora-pages { --ap-paper: var(--bg2); --ap-subtle: var(--bg1); --ap-edge: var(--line2); --ap-rise: 240ms; }
+body.aurora-pages #modalRoot :is(.ap-directory, .ap-editor, .ap-support, .ap-progress-card) { border: 1px solid var(--line); border-radius: 3px; box-shadow: none; }
+body.aurora-pages #modalRoot .ap-intro { padding-right: 0; border-bottom-color: var(--line2); }
+body.aurora-pages #modalRoot .hub15-root.ap-hub .hub15-side > .ap-intro { padding-bottom: 22px; margin-bottom: 20px; }
+body.aurora-pages #modalRoot .hub15-root.ap-hub .hub15-side > .ap-intro::after { display: none; }
+body.aurora-pages #modalRoot .ap-intro::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 10px;
+  bottom: 8px;
+  width: clamp(68px, 17%, 150px);
+  border-block: 1px solid var(--line);
+  background:
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, transparent 0 72%, var(--ac) 72% 73%, transparent 73%);
+  opacity: .62;
+  pointer-events: none;
+  animation: atlas-margin-in 460ms cubic-bezier(.22,1,.36,1) both;
+}
+body.aurora-pages #modalRoot .ap-intro > :is(h2, h3) { font-family: var(--atlas-serif); font-weight: 400; letter-spacing: -.015em; animation: atlas-title-in 300ms ease-out both; }
+body.aurora-pages #modalRoot .ap-eyebrow { font-family: var(--atlas-mono); font-weight: 500; letter-spacing: .16em; }
+body.aurora-pages #modalRoot .ap-section-head h3 { font-family: var(--atlas-serif); font-size: 17px; font-weight: 500; }
+body.aurora-pages #modalRoot .ap-menu { border-radius: 3px; }
+body.aurora-pages #modalRoot .ap-menu > button { border-radius: 2px; }
+body.aurora-pages #modalRoot :is(.ap-dialog, .ap-directory, .ap-editor, .ap-support, .ap-progress-card, .ap-menu) { backdrop-filter: none; }
+body.aurora-pages #modalRoot .ap-dialog { border-radius: 3px; box-shadow: none; }
+body.aurora-pages #modalRoot .ap-dialog > .modal-head,
+body.aurora-pages #modalRoot .ap-dialog > .modal-foot { border-color: var(--line); }
+body.aurora-pages #modalRoot .ap-dialog > .modal-head .modal-title { font-family: var(--atlas-serif); }
+body.aurora-pages #modalRoot .ap-onboarding .c7-tour-card { border-radius: 3px; box-shadow: none; }
+body.aurora-pages #modalRoot :is(.ap-notice, [role="alert"]):not(.err,.error,.warn,.ok) { border-radius: 2px; }
+
+/* Short, finite opening: code is composed into a preview frame, then stays still. */
+#boot {
+  --atlas-boot-paper: #ECE9E1;
+  --atlas-boot-ink: #121316;
+  --atlas-boot-accent: #FFF3C4;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  gap: 0;
+  padding: 36px clamp(22px, 7vw, 104px);
+  align-items: stretch;
+  overflow: auto;
+  background: var(--bg0) !important;
+  color: var(--tx) !important;
+  transition: opacity 220ms ease;
+}
+html.light #boot { --atlas-boot-accent: #0D2BD8; }
+#boot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .23;
+  background-image: var(--atlas-grain), linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 180px 180px, 38px 38px, 38px 38px;
+  background-blend-mode: soft-light, normal, normal;
+}
+#boot .atlas-boot-art { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+#boot .boot-meta,
+#boot .boot-composition,
+#boot .boot-footer,
+#bootErr { z-index: 1; }
+#boot .boot-meta { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--tx3); font: 9px/1.5 var(--atlas-mono); letter-spacing: .14em; }
+#boot .boot-composition { position: relative; width: min(1120px, 100%); margin: auto 0; padding: 38px clamp(320px, 42vw, 540px) 38px 0; }
+#boot .boot-workbench {
+  position: absolute;
+  z-index: 0;
+  width: min(38vw, 480px);
+  min-width: 350px;
+  height: clamp(190px, 27vw, 300px);
+  right: 0;
+  top: 50%;
+  display: grid;
+  grid-template-columns: 36% 1fr;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid var(--line2);
+  background: color-mix(in srgb, var(--bg1) 94%, transparent);
+  opacity: .88;
+  transform: translateY(-42%);
+  animation: atlas-frame-in 760ms 100ms cubic-bezier(.22,1,.36,1) both;
+}
+#boot .boot-code {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 26px 13px 10px;
+  border: 1px solid var(--line);
+  background: var(--bg0);
+}
+#boot .boot-code::before,
+#boot .boot-preview::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 11px;
+  width: 28px;
+  height: 1px;
+  background: var(--line2);
+}
+#boot .boot-code-row {
+  display: block;
+  width: var(--row-width, 82%);
+  height: 3px;
+  background: var(--line2);
+  transform-origin: left;
+  animation: atlas-code-in 560ms calc(100ms + var(--row, 0) * 75ms) cubic-bezier(.22,1,.36,1) both;
+}
+#boot .boot-code-row:nth-child(2n) { background: color-mix(in srgb, var(--atlas-boot-accent) 66%, var(--line2)); }
+#boot .boot-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 11px;
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid var(--line2);
+  background: linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 20px 20px, linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 20px 20px, var(--bg2);
+}
+#boot .boot-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--atlas-boot-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: atlas-preview-in 620ms 330ms cubic-bezier(.22,1,.36,1) both;
+}
+#boot .boot-preview-title { display: block; width: 62%; height: 10px; background: var(--tx2); }
+#boot .boot-preview-line { display: block; width: var(--preview-width, 78%); height: 3px; background: var(--line2); }
+#boot .boot-preview-mark { position: absolute; right: 18px; top: 34px; width: 38px; height: 38px; color: var(--atlas-boot-accent); }
+#boot .boot-kicker { position: relative; display: block; width: fit-content; margin-bottom: 20px; color: var(--ac); font: 9px/1.6 var(--atlas-mono); letter-spacing: .18em; }
+#boot .boot-word { position: relative; display: flex; margin: 0 0 14px; font: clamp(64px, 10vw, 136px)/.98 var(--atlas-serif); font-weight: 400; letter-spacing: -.055em; }
+#boot .boot-letter { display: block; animation: atlas-letter-in 620ms calc(var(--i) * 42ms) cubic-bezier(.22,1,.36,1) both; }
+#boot .boot-letter:nth-child(2),
+#boot .boot-letter:nth-child(5) { color: var(--ac); font-style: italic; }
+#boot .boot-subtitle { position: relative; display: block; width: fit-content; font: clamp(16px, 1.75vw, 23px)/1.6 var(--atlas-serif); letter-spacing: .08em; }
+#boot .boot-rule { position: relative; display: block; width: min(400px, 45%); height: 1px; margin-top: 30px; background: var(--line2); }
+#boot .boot-footer { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--line); padding-top: 15px; color: var(--tx2); font-size: 11px; }
+#boot #bootStatus { display: inline-flex; align-items: center; gap: 9px; }
+#boot #bootStatus::before { content: ""; width: 5px; height: 5px; background: var(--ac); }
+#bootSkip { border: 1px solid var(--line2); border-radius: 2px; padding: 7px 10px; color: var(--tx2); background: transparent; font: 10px var(--atlas-mono); }
+#bootSkip:hover { border-color: var(--ac); color: var(--tx); }
+#bootSkip[hidden] { display: none; }
+#bootErr { position: relative; flex: none; max-width: 100%; max-height: 45vh; margin-top: 20px; padding: 18px; overflow: auto; overflow-wrap: anywhere; border: 1px solid color-mix(in srgb,var(--err) 45%,var(--line)); border-radius: 2px; background: var(--bg1); color: var(--err); line-height: 1.7; }
+#bootErr button { border: 1px solid var(--line2); border-radius: 2px; background: var(--bg3); color: var(--tx); }
+#boot.boot-failed .boot-composition { padding-block: 22px; }
+#boot.boot-failed .boot-workbench { opacity: .25; }
+#boot.boot-still :is(.boot-letter, .boot-workbench, .boot-code-row, .boot-preview::after) { animation: none !important; }
+@keyframes atlas-letter-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes atlas-code-in { from { opacity: .1; transform: scaleX(.12); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes atlas-frame-in { from { opacity: 0; transform: translate(10px, -42%); } to { opacity: .88; transform: translate(0, -42%); } }
+@keyframes atlas-preview-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes atlas-margin-in { from { opacity: 0; transform: translateY(5px); } to { opacity: .72; transform: none; } }
+@keyframes atlas-title-in { from { opacity: .55; } to { opacity: 1; } }
+@keyframes atlas-message-in { from { opacity: .45; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1100px) {
+  body.aurora-workbench .aw-nav-head::after { height: 64px; }
+  body.aurora-workbench #projName { font-size: 20px; }
+  body.aurora-pages #modalRoot .ap-intro > :is(h2, h3) { font-size: clamp(21px, 2.6vw, 28px); }
+}
+@media (max-height: 720px) { body.aurora-workbench .aw-nav-head::after { height: 48px; } }
+@media (max-width: 760px) {
+  #boot { padding: 24px; }
+  #boot .boot-composition { padding-inline: 0; }
+  #boot .boot-workbench { width: min(60vw, 430px); min-width: 260px; height: 190px; right: -15%; opacity: .36; }
+  #boot .boot-composition { padding-block: 24px; }
+  #boot .boot-word { font-size: clamp(64px, 17vw, 100px); }
+  #boot .boot-rule { width: 62%; }
+  #boot .boot-meta { font-size: 8px; }
+  body.aurora-pages #modalRoot .ap-intro { padding-right: 0; }
+  body.aurora-pages #modalRoot .ap-intro::after { opacity: .24; }
+}
+@media (max-width: 440px) {
+  #boot .boot-workbench { display: none; }
+  #boot .boot-meta { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.shell-v5 :is(#topbar, #rail, #statusbar, .pane, .pane-head, .composer, .chat-bar, .modal, .modal-head, .dropmenu, .shell-pal) { transition: none; }
+  body.aurora-workbench .aw-nav-head::after,
+  body.shell-v5 #paneSide .welcome::before,
+  body.aurora-pages #modalRoot .ap-intro::after,
+  body.aurora-pages #modalRoot .ap-intro > :is(h2, h3),
+  body.shell-v5 #paneSide .msg,
+  #boot :is(.boot-letter, .boot-workbench, .boot-code-row, .boot-preview::after) { animation: none !important; }
+}

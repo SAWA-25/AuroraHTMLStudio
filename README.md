@@ -2,6 +2,10 @@
 
 本仓库用于发布 Aurora HTML Studio 的安装包，软件内置的「自动更新」从这里的 [Releases](https://github.com/SAWA-25/AuroraHTMLStudio/releases) 获取新版本。
 
+## 7.7.0 创作起始台修订（2026-11-19）
+
+已将真实项目起始台、统一主题及代码到画布的转场接入前端。详见 [修订说明](docs/studio-bc.md) 和 [资源哈希清单](docs/studio-bc-revision.json)。本次提交包括源码与适用于现有 7.7.0 的四个界面资源；不是完整安装包，也尚未发布新的自动更新 Release。
+
 ## 下载
 
 到 [Releases](https://github.com/SAWA-25/AuroraHTMLStudio/releases/latest) 下载 `AuroraHTMLStudio-full-v*.zip`，解压后双击 `AuroraStudio.exe`。

@@ -122,6 +122,21 @@ test('action routing reaches lexical globals and the real tool center', async ()
   assert.equal(f.document.body.dataset.orreryView, 'workspace');
 });
 
+test('studio entries invoke real project, template, tool and assistant handlers', async () => {
+  const f = fixture();
+  let newCalls = 0, projectCalls = 0;
+  const newButton = f.document.createElement('button'); newButton.id = 'btnNew'; newButton.onclick = () => newCalls++;
+  const projectButton = f.document.createElement('button'); projectButton.id = 'projBtn'; projectButton.onclick = () => projectCalls++;
+  f.document.body.append(newButton, projectButton);
+  vm.runInContext('App.showSide = () => fixtureCalls.tabs++;', f.context);
+  for (const id of ['new', 'projects', 'tools', 'assistant']) assert.equal(await f.bridge.runLegacyAction(id), true);
+  assert.equal(newCalls, 1); assert.equal(projectCalls, 1);
+  assert.equal(f.calls.tabs, 1); assert.deepEqual(f.calls.life, ['home']);
+  newButton.disabled = true;
+  assert.equal(await f.bridge.runLegacyAction('new'), false);
+  assert.equal(newCalls, 1);
+});
+
 test('settings uses the bound original button when its App entrypoint is unavailable', async () => {
   const f = fixture();
   vm.runInContext('delete App.openSettings', f.context);
@@ -149,7 +164,9 @@ test('rail registration is single-instance and cleanup removes only owned nodes/
   const firstButton = f.rail.children[0];
   assert.equal(firstButton.dataset.rail, 'aurora-orrery');
   assert.equal(firstButton.children[0].tagName, 'svg');
+  f.document.body.dataset.orreryView = 'workspace';
   firstButton.click(); assert.deepEqual(f.calls.callbacks, ['home']);
+  assert.equal(f.document.body.dataset.orreryView, 'workspace', 'rail must not mutate the view before the transition callback commits');
   const cleanupAgain = f.bridge.installLegacyBridge(view => f.calls.callbacks.push(view));
   assert.equal(f.rail.children.length, 1); assert.notEqual(f.rail.children[0], firstButton);
   assert.equal(firstButton.events.get('click').size, 0);
@@ -161,7 +178,10 @@ test('rail registration is single-instance and cleanup removes only owned nodes/
 
 test('native design and collapse controls leave letter view without cancelling their handlers', () => {
   const f = fixture();
-  const cleanup = f.bridge.installLegacyBridge(view => f.calls.callbacks.push(view));
+  const cleanup = f.bridge.installLegacyBridge(view => {
+    f.calls.callbacks.push(view);
+    f.bridge.enterLegacyView(view);
+  });
   let nativeActions = 0;
   f.design.onclick = f.collapse.onclick = () => nativeActions++;
   for (const control of [f.design, f.collapse]) {
