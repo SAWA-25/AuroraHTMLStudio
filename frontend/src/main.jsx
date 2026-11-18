@@ -44,7 +44,8 @@ import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Home } from './Home.jsx';
 import { Listen } from './Listen.jsx';
-import { enterLegacyView, installLegacyBridge, runLegacyAction } from './legacy.js';
+import { enterLegacyView, installLegacyBridge, isNativeTourPending, runLegacyAction } from './legacy.js';
+import { brushPath } from './geometry.js';
 import { isPresentationReady, isolateLegacyFocus, shouldExitPresentation } from './presentationSafety.js';
 import './orrery.css';
 import './letter.css';
@@ -92,9 +93,12 @@ function PresentationApp() {
   const releaseFocus = useRef(null);
   const [night, setNight] = useState(readNight);
   const [bridgeError, setBridgeError] = useState('');
+  const [brushPhase, setBrushPhase] = useState('idle');
+  const brushPhaseRef = useRef('idle');
+  const reducedRef = useRef(Boolean(reduced));
+  reducedRef.current = Boolean(reduced);
 
-  const open = useCallback((nextView = 'home') => {
-    const next = VALID_VIEWS.has(nextView) ? nextView : 'home';
+  const commitOpen = useCallback((next) => {
     setBridgeError('');
     const leavingCover = (viewRef.current === 'home' || viewRef.current === 'listen') && (next === 'workspace' || next === 'chat');
     if (leavingCover) { releaseFocus.current?.(); releaseFocus.current = null; }
@@ -111,6 +115,39 @@ function PresentationApp() {
       return false;
     }
   }, []);
+
+  const open = useCallback((nextView = 'home') => {
+    const next = VALID_VIEWS.has(nextView) ? nextView : 'home';
+    if (next === 'chat' && (viewRef.current === 'home' || viewRef.current === 'listen')) {
+      if (reducedRef.current) {
+        brushPhaseRef.current = 'idle';
+        setBrushPhase('idle');
+        return commitOpen('chat');
+      }
+      if (brushPhaseRef.current === 'idle') {
+        setBridgeError('');
+        brushPhaseRef.current = 'cover';
+        setBrushPhase('cover');
+      }
+      return true;
+    }
+    if (brushPhaseRef.current !== 'idle') {
+      brushPhaseRef.current = 'idle';
+      setBrushPhase('idle');
+    }
+    return commitOpen(next);
+  }, [commitOpen]);
+
+  const onBrushAnimationComplete = useCallback(() => {
+    if (brushPhaseRef.current === 'cover') {
+      brushPhaseRef.current = 'reveal';
+      if (commitOpen('chat')) setBrushPhase('reveal');
+      else { brushPhaseRef.current = 'idle'; setBrushPhase('idle'); }
+    } else if (brushPhaseRef.current === 'reveal') {
+      brushPhaseRef.current = 'idle';
+      setBrushPhase('idle');
+    }
+  }, [commitOpen]);
 
   const handleNavigate = useCallback((target = 'home') => {
     if (target === 'hold' || target === 'life') {
@@ -143,35 +180,44 @@ function PresentationApp() {
     let observer;
     let rafId = 0;
     let attempts = 0;
+    let entered = false;
     const maxAttempts = 300;
     const schedule = () => {
-      if (disposed || bridgeDispose || rafId || attempts >= maxAttempts) return;
+      if (disposed || entered || rafId || attempts >= maxAttempts) return;
       rafId = window.requestAnimationFrame(() => {
         rafId = 0;
         tryInstall();
       });
     };
     const tryInstall = () => {
-      if (disposed || bridgeDispose) return;
-      attempts += 1;
-      const ready = isPresentationReady(document, window.__booted);
-      if (!ready) {
-        if (attempts >= maxAttempts) setBridgeError('原生侧栏仍在启动，星盘入口将在刷新后重试。');
-        else schedule();
-        return;
-      }
+      if (disposed || entered) return;
       try {
-        bridgeDispose = installLegacyBridge((nextView = 'home') => open(nextView));
+        if (window.__booted && document.querySelector('#rail .rail-top') && !bridgeDispose) {
+          // Install the capture boundary while the native workspace is still visible.
+          bridgeDispose = installLegacyBridge((nextView = 'home') => open(nextView));
+        }
+        const tourPending = isNativeTourPending();
+        if (bridgeDispose && tourPending) {
+          setBridgeError('等待原生新手引导，请先完成或跳过；若引导未出现，请检查原生初始化。');
+          return;
+        }
+        if (bridgeDispose && document.querySelector('#modalRoot .modal-mask')) return;
+        if (!bridgeDispose || !isPresentationReady(document, window.__booted, tourPending)) {
+          attempts += 1;
+          if (attempts >= maxAttempts) setBridgeError('原生侧栏仍在启动，星盘入口将在刷新后重试。');
+          else schedule();
+          return;
+        }
         enterLegacyView(initialView.current);
         viewRef.current = initialView.current;
         setView(initialView.current);
+        entered = true;
         observer?.disconnect();
         if (rafId) window.cancelAnimationFrame(rafId);
         rafId = 0;
         setBridgeError('');
       } catch (error) {
-        bridgeDispose?.();
-        bridgeDispose = undefined;
+        attempts += 1;
         if (attempts >= maxAttempts) {
           setBridgeError(`原生入口初始化失败：${error instanceof Error ? error.message : String(error)}`);
           console.error('[orrery] legacy bridge readiness failed', error);
@@ -218,12 +264,16 @@ function PresentationApp() {
   }, [open]);
 
   return <MotionConfig reducedMotion={reduced ? 'always' : 'never'} transition={{ ease: [0.22, 1, 0.36, 1] }}>
-    <div ref={surfaceRef} tabIndex={-1} className={`orrery-app orrery-view-${view} ${night ? 'orrery-night' : 'orrery-day'}`} data-testid="orrery-app">
+    <div ref={surfaceRef} tabIndex={-1} inert={brushPhase !== 'idle'} className={`orrery-app orrery-view-${view} ${night ? 'orrery-night' : 'orrery-day'}`} data-testid="orrery-app">
       {covered && <AnimatePresence mode="wait" initial={false}>
         {view === 'home' && <Home key="home" night={night} onToggleNight={toggleNight} onNavigate={handleNavigate} />}
         {view === 'listen' && <Listen key="listen" active />}
       </AnimatePresence>}
       <PageMark view={view} onNavigate={handleNavigate} />
+      {brushPhase !== 'idle' && <svg className="orrery-brush-transition" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+        <defs><clipPath id="orrery-brush-clip" clipPathUnits="userSpaceOnUse"><motion.path d={brushPath(brushPhase === 'cover' ? 0 : 1)} initial={{ d: brushPath(0) }} animate={{ d: brushPhase === 'cover' ? [brushPath(0), brushPath(.5), brushPath(1)] : [brushPath(1), brushPath(.5), brushPath(0)] }} transition={{ duration: .72, times: [0, .48, 1], ease: 'easeInOut' }} onAnimationComplete={onBrushAnimationComplete} /></clipPath></defs>
+        <rect width="1000" height="1000" fill="var(--orr-blue)" clipPath="url(#orrery-brush-clip)" />
+      </svg>}
       {bridgeError && <div className="orrery-bridge-error" role="status"><span>{bridgeError}</span><button type="button" onClick={() => setBridgeError('')}>关闭</button></div>}
     </div>
   </MotionConfig>;
