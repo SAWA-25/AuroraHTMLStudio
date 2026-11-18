@@ -1,0 +1,97 @@
+:root {
+  --orr-paper: #ECE9E1;
+  --orr-ink: #121316;
+  --orr-night: #141518;
+  --orr-blue: #0D2BD8;
+  --orr-blue-soft: rgba(13,43,216,.14);
+  --orr-line: rgba(18,19,22,.23);
+  --orr-line-night: rgba(236,233,225,.22);
+  --orr-serif: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  --orr-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  --orr-ease: cubic-bezier(.22,1,.36,1);
+}
+
+/* Keep native dialogs, toasts and editor popovers above this presentation layer. */
+#aurora-orrery-root { position: fixed; inset: 0; z-index: 80; pointer-events: none; isolation: isolate; }
+.orrery-app { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--orr-ink); font-family: var(--orr-mono); }
+.orrery-app > * { pointer-events: auto; }
+.orrery-app button, .orrery-app input, .orrery-app textarea { font: inherit; }
+.orrery-app button { cursor: pointer; }
+.orrery-app button:focus-visible { outline: 2px solid var(--orr-blue); outline-offset: 4px; }
+.orrery-home { position: absolute; inset: 0; overflow: hidden; background: var(--orr-paper); color: var(--orr-ink); }
+.orrery-home::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .08; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.26'/%3E%3C/svg%3E"); mix-blend-mode: multiply; }
+.orrery-home::before { content: ''; position: absolute; inset: 0 0 0 72%; background: var(--orr-ink); pointer-events: none; }
+.orrery-home.is-night { background: var(--orr-night); color: var(--orr-paper); }
+.orrery-home.is-night::before { left: 0; right: 72%; background: #0e0f11; }
+.orrery-stipple { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.orrery-masthead, .orrery-footer { position: absolute; z-index: 5; left: 28px; right: 28px; display: flex; justify-content: space-between; gap: 18px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+.orrery-masthead { top: 25px; }
+.orrery-footer { bottom: 19px; color: rgba(18,19,22,.56); }
+.is-night .orrery-footer { color: rgba(236,233,225,.55); }
+.orrery-intro { position: absolute; z-index: 5; left: 6.3vw; top: 17vh; width: min(420px, 38vw); }
+.eyebrow { margin: 0 0 16px; color: var(--orr-blue); font-size: 10px; letter-spacing: .18em; }
+.orrery-intro h1 { margin: 0; font: 500 clamp(42px, 5.8vw, 86px)/.84 var(--orr-serif); letter-spacing: -.025em; }
+.intro-copy { max-width: 260px; margin: 28px 0 0; font: 400 16px/1.6 var(--orr-serif); }
+.orrery-svg { position: absolute; z-index: 3; left: 11%; top: 7%; width: min(94vw, 1010px); height: min(86vh, 900px); min-width: 640px; overflow: visible; touch-action: none; }
+.orrery-svg rect:first-child { transition: fill .55s var(--orr-ease); }
+.orrery-architectural path { fill: none; stroke: currentColor; stroke-width: .7; stroke-dasharray: 1 7; }
+.orrery-orbits ellipse, .orrery-orbits path { fill: none; stroke: currentColor; stroke-width: 1; stroke-opacity: .42; }
+.orrery-orbits text { fill: currentColor; font: 9px var(--orr-mono); letter-spacing: .18em; opacity: .7; }
+.orrery-eye path { fill: var(--orr-blue); stroke: rgba(236,233,225,.24); stroke-width: 1; }
+.orrery-eye .orrery-bird { fill: var(--orr-paper); stroke: none; opacity: .82; }
+.orrery-night-steps path { fill: var(--orr-paper); stroke: rgba(13,43,216,.33); stroke-width: 1; }
+.orrery-node { cursor: pointer; }
+.orrery-node > circle:first-child { fill: var(--orr-paper); stroke: currentColor; stroke-width: 1; transition: r .2s var(--orr-ease), fill .2s var(--orr-ease); }
+.is-night .orrery-node > circle:first-child { fill: var(--orr-night); }
+.orrery-node .node-dot { fill: var(--orr-blue); stroke: none; }
+.orrery-node text { fill: currentColor; text-anchor: middle; font: 500 18px var(--orr-serif); pointer-events: none; }
+.orrery-node .node-zh { font-size: 11px; letter-spacing: .12em; }
+.orrery-node .node-note { font: 8px var(--orr-mono); letter-spacing: .12em; opacity: .64; }
+.orrery-node.is-active > circle:first-child { fill: var(--orr-blue); stroke: var(--orr-blue); }
+.orrery-node.is-active text { fill: var(--orr-paper); }
+.orrery-node.is-active .node-dot { fill: var(--orr-paper); }
+.orrery-node foreignObject button { width: 100%; height: 100%; border: 0; background: transparent; }
+.orrery-needle { fill: var(--orr-blue); stroke: var(--orr-blue); stroke-width: 2; stroke-linecap: round; opacity: .88; pointer-events: none; }
+.orrery-compass { position: absolute; z-index: 7; right: 42px; bottom: 55px; display: grid; place-items: center; width: 126px; height: 126px; padding: 0; border: 0; color: var(--orr-paper); background: transparent; }
+.orrery-compass svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1; opacity: .9; }
+.orrery-compass svg circle:last-child { fill: var(--orr-blue); stroke: var(--orr-blue); }
+.orrery-compass span { position: relative; margin-top: 160px; font-size: 9px; letter-spacing: .12em; white-space: nowrap; }
+.is-night .orrery-compass { color: var(--orr-blue); }
+.is-night .orrery-compass svg circle:last-child { fill: var(--orr-paper); stroke: var(--orr-paper); }
+.orrery-quarter { position: absolute; z-index: 8; left: 25px; bottom: 31px; width: 180px; height: 180px; }
+.quarter-toggle { position: absolute; left: 0; bottom: 0; width: 54px; height: 54px; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: currentColor; font-size: 28px; line-height: 1; transition: transform .2s var(--orr-ease), background .2s var(--orr-ease); }
+.orrery-quarter.is-open .quarter-toggle { transform: rotate(45deg); color: var(--orr-paper); background: var(--orr-blue); }
+.quarter-menu { position: absolute; left: 31px; bottom: 30px; display: flex; align-items: flex-end; gap: 10px; opacity: 0; transform: translate(-10px, 10px); transition: opacity .22s var(--orr-ease), transform .22s var(--orr-ease); pointer-events: none; }
+.orrery-quarter.is-open .quarter-menu { opacity: 1; transform: translate(0,0); pointer-events: auto; }
+.quarter-menu button { min-width: 54px; padding: 8px 4px; border: 1px solid currentColor; border-radius: 0; background: var(--orr-paper); color: var(--orr-ink); font-size: 10px; text-align: center; }
+.quarter-menu small { font-size: 8px; letter-spacing: .12em; }
+.is-night .quarter-menu button { background: var(--orr-night); color: var(--orr-paper); }
+.orrery-page-mark { position: absolute; z-index: 20; top: 26px; left: 28px; right: 28px; display: flex; align-items: center; gap: 16px; color: var(--orr-paper); font-size: 10px; letter-spacing: .17em; }
+.orrery-back, .orrery-home-link { border: 0; color: currentColor; background: transparent; }
+.orrery-back { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid currentColor; }
+.orrery-back svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.orrery-home-link { margin-left: auto; padding: 9px 0; border-bottom: 1px solid currentColor; }
+.orrery-bridge-error { position: absolute; z-index: 30; right: 20px; bottom: 20px; display: flex; align-items: center; gap: 12px; max-width: min(520px, calc(100% - 40px)); padding: 12px 14px; border-left: 2px solid var(--orr-blue); background: var(--orr-paper); color: var(--orr-ink); box-shadow: 0 8px 30px rgba(18,19,22,.16); font-size: 11px; }
+.orrery-bridge-error button { border: 0; color: var(--orr-blue); background: transparent; }
+
+@media (max-width: 800px) {
+  .orrery-home::before { left: 67%; }
+  .orrery-home.is-night::before { right: 67%; }
+  .orrery-masthead, .orrery-footer { left: 17px; right: 17px; font-size: 8px; letter-spacing: .11em; }
+  .orrery-masthead { top: 16px; }
+  .orrery-footer { bottom: 12px; }
+  .orrery-intro { left: 21px; top: 11vh; width: 250px; }
+  .orrery-intro h1 { font-size: clamp(42px, 15vw, 64px); }
+  .intro-copy { margin-top: 20px; font-size: 14px; max-width: 220px; }
+  .orrery-svg { left: -31%; top: 18%; width: 142vw; height: 76vh; min-width: 620px; }
+  .orrery-compass { right: 18px; bottom: 53px; width: 96px; height: 96px; }
+  .orrery-compass span { margin-top: 126px; font-size: 8px; }
+  .orrery-quarter { left: 15px; bottom: 20px; transform: scale(.82); transform-origin: left bottom; }
+  .orrery-page-mark { top: 17px; left: 17px; right: 17px; font-size: 8px; }
+  .orrery-back { width: 36px; height: 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orrery-app *, .orrery-app *::before, .orrery-app *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .orrery-needle { transform: none !important; }
+}
