@@ -20,6 +20,7 @@ function fixture({ ready = true, withRail = true } = {}) {
     querySelector(selector) {
       if (selector === '#rail .rail-top') return withRail ? rail : null;
       if (selector === '#sideTabs [data-side="chat"]') return ready ? chatTab : null;
+      if (selector === '.c7-tour') return document.tour || null;
       throw new Error(`Unmodeled selector: ${selector}`);
     },
   };
@@ -77,14 +78,14 @@ function fixture({ ready = true, withRail = true } = {}) {
   const calls = { tabs: 0, settings: 0, holds: 0, captures: 0, saves: 0, life: [], errors: [], notices: [], callbacks: [] };
   side.append(chat); pane.append(chatTab, design, collapse, side); workspace.append(pane);
   document.body.append(workspace, rail, settings, toasts);
-  const context = vm.createContext({ document, installPreviewCaptureGuard, lockScreenshotButton, console: { error: (...args) => calls.errors.push(args) } });
+  const context = vm.createContext({ document, URLSearchParams, installPreviewCaptureGuard, lockScreenshotButton, console: { error: (...args) => calls.errors.push(args) } });
   // A classic-script const intentionally has no window/globalThis property, matching Aurora.
   vm.runInContext('const App = { settings: { ui: Object.freeze({ hideSide: true, sideW: 360 }), ctx: { shot: true } } }; const ToolHub = { tools: [] }; const PV = { capture: async function () { fixtureCalls.captures++; return "preview-pixels"; } };', context);
   context.fixtureCalls = calls;
   vm.runInContext('App.openSettings = () => fixtureCalls.settings++; ToolHub.tools.push({ id: "chat13-bookmarks", open: () => fixtureCalls.holds++ });', context);
   context.HUB15 = { open: async category => calls.life.push(category) };
   context.toast = (message, kind) => calls.notices.push({ message, kind });
-  vm.runInContext(`${source.replace(/^export /gm, '')}\nglobalThis.bridge = { enterLegacyView, runLegacyAction, installLegacyBridge };`, context);
+  vm.runInContext(`${source.replace(/^export /gm, '')}\\nglobalThis.bridge = { enterLegacyView, runLegacyAction, installLegacyBridge, isNativeTourPending };`, context);
   return { context, bridge: context.bridge, document, listeners, calls, pane, side, chat, design, collapse, rail, settings, shot };
 }
 
@@ -210,6 +211,62 @@ test('stale bridge cleanup cannot unlock the current chat guard', async () => {
   second();
   assert.equal(f.shot.disabled, false);
   assert.equal(await vm.runInContext('PV.capture()', f.context), 'preview-pixels');
+});
+
+test('bridge guards a capture started in workspace before its first presentation', async () => {
+  const f = fixture();
+  let resolvePixels;
+  f.context.pendingPixels = new Promise(resolve => { resolvePixels = resolve; });
+  vm.runInContext('PV.capture = () => pendingPixels', f.context);
+  f.bridge.enterLegacyView('workspace');
+  const cleanup = f.bridge.installLegacyBridge(() => {});
+  const capture = vm.runInContext('PV.capture()', f.context);
+  const rejected = assert.rejects(capture, /截图结果已丢弃/);
+  f.bridge.enterLegacyView('home');
+  resolvePixels('covered-native-pixels');
+  await rejected;
+  cleanup();
+});
+
+test('bridge installs capture protection before any view entry or guide waiting', async () => {
+  const f = fixture();
+  const original = vm.runInContext('PV.capture', f.context);
+  const cleanup = f.bridge.installLegacyBridge(() => {});
+  assert.notEqual(vm.runInContext('PV.capture', f.context), original);
+  assert.equal(await vm.runInContext('PV.capture()', f.context), 'preview-pixels');
+  cleanup();
+  assert.equal(vm.runInContext('PV.capture', f.context), original);
+});
+
+test('native guide delays presentation until completed, including a late or forced guide', () => {
+  const f = fixture();
+  vm.runInContext('const Store = { cache: {} };', f.context);
+  f.context.C7 = { tour() {} };
+  f.context.navigator = { webdriver: false };
+  f.context.location = { search: '' };
+  const cleanup = f.bridge.installLegacyBridge(() => {});
+  assert.equal(f.bridge.isNativeTourPending(), true);
+  assert.equal(f.bridge.enterLegacyView('workspace'), 'workspace');
+  assert.throws(() => f.bridge.enterLegacyView('home'), /新手引导/);
+  assert.throws(() => f.bridge.enterLegacyView('chat'), /新手引导/);
+  assert.equal(f.calls.tabs, 0);
+  assert.equal(f.document.body.dataset.orreryView, 'workspace');
+  for (const search of ['?notour', '?notour=0']) {
+    f.context.location.search = search;
+    assert.equal(f.bridge.isNativeTourPending(), false);
+  }
+  f.context.location.search = '';
+  f.context.navigator.webdriver = true;
+  assert.equal(f.bridge.isNativeTourPending(), false);
+  f.context.navigator.webdriver = false;
+  vm.runInContext('Store.cache.c7Tour = 123;', f.context);
+  assert.equal(f.bridge.isNativeTourPending(), false);
+  f.document.tour = {};
+  assert.equal(f.bridge.isNativeTourPending(), true);
+  assert.throws(() => f.bridge.enterLegacyView('listen'), /新手引导/);
+  f.document.tour = null;
+  assert.equal(f.bridge.enterLegacyView('home'), 'home');
+  cleanup();
 });
 
 test('bridge requires a real ready rail and callback', () => {
