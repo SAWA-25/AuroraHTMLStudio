@@ -1,5 +1,6 @@
-export function isPresentationReady(document, booted) {
-  return Boolean(booted && document.querySelector('#rail .rail-top') && !document.getElementById('boot'));
+export function isPresentationReady(document, booted, tourPending = false) {
+  return Boolean(booted && !tourPending && document.querySelector('#rail .rail-top')
+    && !document.getElementById('boot') && !document.querySelector('.c7-tour'));
 }
 
 export function shouldExitPresentation(event, view, document) {
