@@ -41,10 +41,21 @@ function reportFailure(action, error) {
   return false;
 }
 
+/** Mirror the native guide's startup condition without marking it completed. */
+export function isNativeTourPending() {
+  if (document.querySelector('.c7-tour')) return true;
+  if (typeof globalThis.C7?.tour !== 'function') return false;
+  const store = typeof Store !== 'undefined' ? Store : globalThis.Store;
+  return !store?.cache?.c7Tour && !globalThis.navigator?.webdriver
+    && !new URLSearchParams(globalThis.location?.search || '').has('notour');
+}
+
 /** Call after __booted. This never changes App.settings.ui or writes its persistence. */
 export function enterLegacyView(view) {
   if (!VIEWS.has(view)) throw new RangeError(`未知星盘视图：${String(view)}`);
   if (!document.body) throw new Error('Aurora 页面尚未就绪');
+  ensureCaptureGuard();
+  if (view !== 'workspace' && isNativeTourPending()) throw new Error('请先完成或跳过工作台的新手引导');
   if (view === 'chat') {
     const tab = document.querySelector('#sideTabs [data-side="chat"]');
     const chat = document.getElementById('viewChat');
@@ -53,7 +64,6 @@ export function enterLegacyView(view) {
     tab.click();
     if (!chat.classList.contains('active')) throw new Error('原生聊天入口尚未完成初始化');
   }
-  if (view !== 'workspace') ensureCaptureGuard();
   if (document.body.dataset.orreryView !== view) captureGuard?.viewChanged();
   if (view === 'chat' && !restoreShotButton) restoreShotButton = lockScreenshotButton(document.getElementById('tgShot'));
   if (view !== 'chat') { restoreShotButton?.(); restoreShotButton = undefined; }
@@ -128,6 +138,7 @@ export function installLegacyBridge(onOpen) {
   const rail = document.querySelector('#rail .rail-top');
   if (!rail) throw new Error('原生侧栏尚未就绪，请在 __booted 后安装星盘入口');
   removeInstalledBridge?.();
+  ensureCaptureGuard();
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'rail-btn orrery-rail-entry';
