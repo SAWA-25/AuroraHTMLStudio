@@ -85,7 +85,7 @@ function fixture({ ready = true, withRail = true } = {}) {
   vm.runInContext('App.openSettings = () => fixtureCalls.settings++; ToolHub.tools.push({ id: "chat13-bookmarks", open: () => fixtureCalls.holds++ });', context);
   context.HUB15 = { open: async category => calls.life.push(category) };
   context.toast = (message, kind) => calls.notices.push({ message, kind });
-  vm.runInContext(`${source.replace(/^export /gm, '')}\\nglobalThis.bridge = { enterLegacyView, runLegacyAction, installLegacyBridge, isNativeTourPending };`, context);
+  vm.runInContext(`${source.replace(/^export /gm, '')}\nglobalThis.bridge = { enterLegacyView, runLegacyAction, installLegacyBridge, isNativeTourPending };`, context);
   return { context, bridge: context.bridge, document, listeners, calls, pane, side, chat, design, collapse, rail, settings, shot };
 }
 
