@@ -1,0 +1,197 @@
+/* Orrery correspondence. Loaded after legacy CSS; all original DOM ancestry is retained. */
+body[data-orrery-view="chat"] {
+  --bg0: #ECE9E1; --bg1: #ECE9E1; --bg2: #F3F0E9; --bg3: #E3E0D9; --bg4: #DAD7D0;
+  --tx: #141518; --tx2: #52514E; --tx3: #66635E;
+  --ac: #0D2BD8; --ac2: #0D2BD8; --ac3: #0D2BD8; --acg: #0D2BD8;
+  --ac-soft: rgb(13 43 216 / 7%); --ac-glow: transparent; --on-ac: #ECE9E1;
+  --line: rgb(20 21 24 / 12%); --line2: rgb(20 21 24 / 24%);
+  --ok: #0D2BD8; --warn: #52514E; --err: #141518;
+  --r: 2px; --r2: 2px; --shadow: none;
+  --mono: "JetBrains Mono", "Space Mono", Consolas, monospace;
+  background: #ECE9E1; color: #141518; color-scheme: light;
+}
+body[data-orrery-view="chat"] #app {
+  display: block; height: 100%; min-width: 0; background: #ECE9E1;
+}
+body[data-orrery-view="chat"] #app::before { opacity: 0; }
+body[data-orrery-view="chat"] #app::after {
+  position: fixed; inset: 0; opacity: .055; mix-blend-mode: multiply;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.83' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23141518' filter='url(%23n)' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
+}
+/* These controls remain available in workspace; dialogs and plugin popovers remain untouched. */
+body[data-orrery-view="chat"] #app :is(#topbar, #rail, #workbenchBar, #paneEditor, #panePreview, #split1, #split2, #statusbar) { display: none; }
+body[data-orrery-view="chat"] #app #shellBody { display: contents; }
+body[data-orrery-view="chat"] #app #workspace {
+  display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; overflow: visible;
+}
+body[data-orrery-view="chat"] #app #workspace #paneSide {
+  position: fixed; inset: 100px 10vw 60px 20vw; display: flex;
+  width: auto; max-width: none; min-width: 0; min-height: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: hidden;
+}
+body[data-orrery-view="chat"] #app #paneSide > .pane-head {
+  flex: none; min-height: 44px; height: auto; padding: 0; gap: 12px;
+  border-bottom: 1px solid var(--line2); background: transparent;
+}
+body[data-orrery-view="chat"] #app #paneSide > .pane-head::after { content: none; }
+body[data-orrery-view="chat"] #app #paneSide > .pane-head :is(.tab, .icon) {
+  min-height: 44px; height: auto; border-radius: 0; background: transparent;
+}
+body[data-orrery-view="chat"] #app #paneSide > .pane-head .icon { min-width: 44px; }
+body[data-orrery-view="chat"] #app #paneSide > .pane-head .tab.active { color: var(--ac); box-shadow: inset 0 -1px var(--ac); }
+body[data-orrery-view="chat"] #app #paneSide .side-body { min-height: 0; overflow: hidden; }
+body[data-orrery-view="chat"] #paneSide #viewChat { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+body[data-orrery-view="chat"] #paneSide #viewChat .chat-bar {
+  flex: none; min-width: 0; min-height: 52px; padding: 4px 0; gap: 6px;
+  overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--line); background: transparent;
+  scrollbar-width: thin; scrollbar-color: var(--line2) transparent;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .chat-bar > button {
+  flex-shrink: 0; min-height: 44px; height: 44px; min-width: 44px;
+  border-radius: 2px; background: transparent; box-shadow: none;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat #modelBtn { flex: 0 0 auto; max-width: 250px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .mp18-btn { flex: 0 0 auto; max-width: 180px; }
+body[data-orrery-view="chat"] #paneSide #viewChat :is(.model-btn.ready .dot, .mp18-btn.on .mp18-dot) { box-shadow: none; }
+body[data-orrery-view="chat"] #paneSide #viewChat #tb13Strip {
+  flex: none; height: 36px; margin: 0; padding: 0 3px; border: 0; border-bottom: 1px solid var(--line);
+  border-radius: 0; background: transparent; font-family: var(--mono); font-size: 10px;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .tb13-track { height: 1px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .mp18-panel { border-radius: 2px; margin: 6px 0; max-height: min(48dvh, 340px); }
+body[data-orrery-view="chat"] #paneSide #viewChat .mp18-panel :is(button, input, select, textarea, .mp18-row, .mp18-tabs) { border-radius: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat #chatList {
+  counter-reset: letter-entry; flex: 1 1 0; min-height: 96px; min-width: 0;
+  padding: 26px 12px 28px 54px; gap: 28px; overflow-x: hidden; overflow-y: auto;
+  background: linear-gradient(90deg, transparent 23px, var(--line2) 23px 24px, transparent 24px);
+  scrollbar-width: thin; scrollbar-color: var(--line2) transparent; scroll-padding-block: 24px;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .msg {
+  counter-increment: letter-entry; position: relative; flex: none;
+  align-items: stretch; min-width: 0; gap: 8px; animation: orrery-letter-arrive .36s cubic-bezier(.22, 1, .36, 1) both;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .msg::before {
+  content: counter(letter-entry, decimal-leading-zero); position: absolute; left: -53px; top: 4px; width: 31px;
+  padding: 3px 0; background: var(--bg0); color: var(--tx3); text-align: left;
+  font: 9px/1.4 var(--mono); letter-spacing: .12em; font-variant-numeric: tabular-nums;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .msg .bubble {
+  min-width: 0; max-width: 100%; width: 100%; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; color: var(--tx); font-size: 14px; line-height: 1.9; overflow-wrap: anywhere;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .msg.user .bubble { padding-block: 3px 12px; border-bottom: 1px solid var(--line); }
+body[data-orrery-view="chat"] #paneSide #viewChat .msg .who {
+  color: var(--tx3); font: 10px/1.6 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .msg .who .av {
+  width: 20px; height: 20px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ac);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .msg :is(.imgs, .ctx) { justify-content: flex-start; }
+body[data-orrery-view="chat"] #paneSide #viewChat .msg .imgs img { max-width: 140px; border-radius: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .msg .ctx span { background: transparent; padding-inline: 0 8px; border-radius: 0; }
+body[data-orrery-view="chat"] #paneSide #viewChat .bubble blockquote {
+  margin: 12px 0; padding: 2px 0 2px 16px; border-left: 1px solid var(--ac); border-radius: 0;
+  background: transparent; color: var(--tx2);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .bubble :is(h3, h4, h5, h6) { font-size: 1em; }
+body[data-orrery-view="chat"] #paneSide #viewChat .bubble code { border-radius: 2px; color: var(--ac); }
+body[data-orrery-view="chat"] #paneSide #viewChat :is(.codeblock, .applied-bar) { border-radius: 2px; background: var(--bg2); }
+body[data-orrery-view="chat"] #paneSide #viewChat .cb-head { flex-wrap: wrap; gap: 4px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .cb-acts { flex-wrap: wrap; }
+body[data-orrery-view="chat"] #paneSide #viewChat .msg-acts { opacity: 1; flex-wrap: wrap; gap: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat :is(.msg-acts, .cb-acts) button {
+  min-height: 36px; height: auto; min-width: 36px; border-radius: 2px; color: var(--tx2);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .applied-bar { color: var(--ac); border-color: var(--line2); }
+body[data-orrery-view="chat"] #paneSide #viewChat .applied-bar.fail { color: var(--tx); border-style: dashed; }
+body[data-orrery-view="chat"] #paneSide #viewChat .err-text { border-left: 1px solid var(--tx); padding-left: 12px; }
+body[data-orrery-view="chat"] #paneSide #viewChat details.reasoning { border-left-width: 1px; color: var(--tx2); }
+body[data-orrery-view="chat"] #paneSide #viewChat details.reasoning summary { min-height: 36px; padding-block: 8px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .welcome { padding: 14px 0; margin-block: auto; }
+body[data-orrery-view="chat"] #paneSide #viewChat .welcome::before { content: none; }
+body[data-orrery-view="chat"] #paneSide #viewChat .welcome .wl-logo { display: none; }
+body[data-orrery-view="chat"] #paneSide #viewChat .welcome h2 { font-size: 21px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .welcome .wl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body[data-orrery-view="chat"] #paneSide #viewChat .welcome .wl-grid button { border-radius: 2px; min-height: 56px; background: transparent; }
+body[data-orrery-view="chat"] #paneSide #viewChat .composer {
+  flex: 0 1 auto; min-height: 136px; max-height: min(44dvh, 360px); overflow-y: auto;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line2); background: var(--bg0);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .chips { gap: 8px; scrollbar-width: thin; }
+body[data-orrery-view="chat"] #paneSide #viewChat .chip {
+  min-height: 36px; height: auto; border: 0; border-bottom: 1px solid var(--line2); border-radius: 0;
+  padding: 0 8px; background: transparent; color: var(--tx2);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .attach-row { gap: 8px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .att { min-height: 44px; padding-right: 46px; border-radius: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .att img { border-radius: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .att .x { width: 40px; height: 40px; right: 0; border-radius: 0; }
+body[data-orrery-view="chat"] #paneSide #viewChat .input-wrap { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+body[data-orrery-view="chat"] #paneSide #viewChat .input-wrap:focus-within { box-shadow: inset 0 -1px var(--ac); }
+body[data-orrery-view="chat"] #paneSide #viewChat .input-wrap.drag { outline: 1px dashed var(--ac); outline-offset: -1px; }
+body[data-orrery-view="chat"] #paneSide #viewChat #chatInput {
+  min-height: 64px; max-height: min(20dvh, 180px); padding: 8px 4px; color: var(--tx); line-height: 1.7; font-size: 15px;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat #chatInput::placeholder { color: var(--tx3); opacity: 1; }
+body[data-orrery-view="chat"] #paneSide #viewChat .input-tools { flex-wrap: wrap; gap: 4px; padding: 4px 0; }
+body[data-orrery-view="chat"] #paneSide #viewChat .input-tools :is(.icon, .toggle) {
+  min-height: 44px; height: 44px; min-width: 44px; border-radius: 2px; color: var(--tx2);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat .input-tools .toggle.on { color: var(--ac); background: var(--ac-soft); border-color: var(--line2); }
+/* Existing !important legacy declarations consume these local variables, preserving .stop state. */
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend {
+  --acg: transparent; --err: #141518; --on-ac: #0D2BD8;
+  flex: none; position: relative; width: 48px; height: 44px; margin-left: 2px; border: 0;
+  border-radius: 2px; background: transparent; color: var(--ac); box-shadow: none; animation: none;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend:not(.stop) > i { visibility: hidden; }
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend:not(.stop)::before {
+  content: ""; position: absolute; inset: 5px;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-40 -34 86 66'%3E%3Cpath fill='%230D2BD8' d='M-34,-7 C-24,-8 -15,-4 -6,0 C-15,-14 -24,-23 -34,-29 C-13,-25 -1,-13 4,-6 C11,-16 24,-22 39,-23 C28,-14 19,-4 12,3 C15,8 17,14 18,19 L7,12 L3,26 L-1,11 C-13,7 -24,2 -34,-7 Z'/%3E%3C/svg%3E");
+  transition: transform .35s cubic-bezier(.22, 1, .36, 1);
+}
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend:not(.stop):not(:disabled):hover::before { transform: translate(3px, -2px) rotate(-7deg); }
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend.stop { border: 1px solid var(--tx); }
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend.stop > i { visibility: hidden; }
+body[data-orrery-view="chat"] #paneSide #viewChat #btnSend.stop::before { content: ""; width: 12px; height: 12px; border: 1px solid #ECE9E1; background: #ECE9E1; }
+body[data-orrery-view="chat"] #paneSide #viewChat :is(button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ac); outline-offset: -2px;
+}
+body[data-orrery-view="chat"] #paneSide #viewChat button:disabled { cursor: not-allowed; }
+body[data-orrery-view="chat"] .fx18-ctx-pop { border-radius: 2px; box-shadow: none; }
+body[data-orrery-view="chat"] .fx18-ctx-pop :is(.toggle, .icon) { min-height: 44px; border-radius: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat :is(.fx18-ctx-alert, .fx18-genbar) { border-radius: 2px; }
+body[data-orrery-view="chat"] #paneSide #viewChat .fx18-genbar button { min-height: 36px; }
+body #app #rail .orrery-rail-entry { border-radius: 2px; min-height: 44px; height: 44px; }
+body #app #rail .orrery-rail-entry svg { flex: none; }
+body #app #rail .orrery-rail-entry:focus-visible { outline: 2px solid var(--ac); outline-offset: -2px; }
+body .orrery-bridge-notice { max-width: min(90vw, 520px); padding: 14px; border: 1px solid #141518; border-radius: 2px; background: #ECE9E1; color: #141518; text-align: left; }
+@keyframes orrery-letter-arrive { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 760px) {
+  body[data-orrery-view="chat"] #app #workspace #paneSide { inset: 80px 0 56px; padding-inline: 16px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .chat-bar { gap: 4px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat #modelBtn { max-width: 190px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .mp18-btn { max-width: 130px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat #tb13Strip { min-height: 44px; height: 44px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat #chatList { padding: 22px 2px 22px 36px; background-position: -10px 0; gap: 24px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .msg::before { left: -36px; width: 25px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .msg .bubble { font-size: 14px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat :is(.msg-acts, .cb-acts) button { min-width: 44px; min-height: 44px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat details.reasoning summary { min-height: 44px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .welcome .wl-grid { grid-template-columns: 1fr; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .composer { max-height: 42dvh; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .chip { min-height: 44px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat #chatInput { font-size: 16px; max-height: 18dvh; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .att .x { width: 44px; height: 44px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .input-tools { padding-right: 54px; min-height: 48px; position: relative; }
+  body[data-orrery-view="chat"] #paneSide #viewChat #btnSend { position: absolute; right: 0; bottom: 4px; }
+}
+@media (max-height: 600px) {
+  body[data-orrery-view="chat"] #paneSide #viewChat #chatList { flex: 1 0 96px; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .composer { flex: none; max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-orrery-view="chat"] #paneSide #viewChat .msg { animation: none; }
+  body[data-orrery-view="chat"] #paneSide #viewChat #btnSend::before { transition: none; }
+  body[data-orrery-view="chat"] #paneSide #viewChat .thinking i { animation: none; opacity: .65; }
+}
