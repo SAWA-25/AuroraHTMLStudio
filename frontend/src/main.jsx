@@ -46,7 +46,7 @@ import { Home } from './Home.jsx';
 import { Listen } from './Listen.jsx';
 import { enterLegacyView, installLegacyBridge, isNativeTourPending, runLegacyAction } from './legacy.js';
 import { brushPath } from './geometry.js';
-import { isPresentationReady, isolateLegacyFocus, shouldExitPresentation } from './presentationSafety.js';
+import { isNativeWindowMode, isPresentationReady, isolateLegacyFocus, shouldExitPresentation } from './presentationSafety.js';
 import './orrery.css';
 import './letter.css';
 
@@ -192,6 +192,7 @@ function PresentationApp() {
     const tryInstall = () => {
       if (disposed || entered) return;
       try {
+        if (isNativeWindowMode(document)) return;
         if (window.__booted && document.querySelector('#rail .rail-top') && !bridgeDispose) {
           // Install the capture boundary while the native workspace is still visible.
           bridgeDispose = installLegacyBridge((nextView = 'home') => open(nextView));
@@ -228,6 +229,7 @@ function PresentationApp() {
     if (document.body) {
       observer = new MutationObserver(() => tryInstall());
       observer.observe(document.body, { childList: true, subtree: true });
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryInstall, { once: true });
     tryInstall();

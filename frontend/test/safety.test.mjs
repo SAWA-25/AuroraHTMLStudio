@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installPreviewCaptureGuard, lockScreenshotButton } from '../src/captureSafety.js';
-import { isPresentationReady, shouldExitPresentation, isolateLegacyFocus } from '../src/presentationSafety.js';
+import { isNativeWindowMode, isPresentationReady, shouldExitPresentation, isolateLegacyFocus } from '../src/presentationSafety.js';
 
 test('first presentation waits for the splash to finish restoring native focus state', () => {
   let splash = {}, rail = null, tour = null;
   const document = {
     getElementById: id => id === 'boot' ? splash : null,
-    querySelector: selector => selector === '#rail .rail-top' ? rail : tour,
+    querySelector: selector => selector === '#rail .rail-top' ? rail : selector === '.c7-tour' ? tour : null,
   };
   assert.equal(isPresentationReady(document, false), false);
   rail = {};
@@ -19,6 +19,25 @@ test('first presentation waits for the splash to finish restoring native focus s
   assert.equal(isPresentationReady(document, true), false);
   tour = null;
   rail = null;
+  assert.equal(isPresentationReady(document, true), false);
+});
+
+test('native tool windows retain ownership until both solo markers are removed', () => {
+  let splash = null, soloBoot = true, soloBody = false;
+  const document = {
+    getElementById: id => id === 'boot' ? splash : null,
+    querySelector: selector => selector === '#rail .rail-top' ? {}
+      : selector === 'html.win15-solo-boot, body.win15-solo' && (soloBoot || soloBody) ? {} : null,
+  };
+  for (const markers of [[true, false], [true, true], [false, true]]) {
+    [soloBoot, soloBody] = markers;
+    assert.equal(isNativeWindowMode(document), true);
+    assert.equal(isPresentationReady(document, true), false);
+  }
+  soloBoot = soloBody = false;
+  assert.equal(isNativeWindowMode(document), false);
+  assert.equal(isPresentationReady(document, true), true);
+  splash = {};
   assert.equal(isPresentationReady(document, true), false);
 });
 

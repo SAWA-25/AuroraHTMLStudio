@@ -1,5 +1,9 @@
+export function isNativeWindowMode(document) {
+  return Boolean(document.querySelector('html.win15-solo-boot, body.win15-solo'));
+}
+
 export function isPresentationReady(document, booted, tourPending = false) {
-  return Boolean(booted && !tourPending && document.querySelector('#rail .rail-top')
+  return Boolean(booted && !tourPending && !isNativeWindowMode(document) && document.querySelector('#rail .rail-top')
     && !document.getElementById('boot') && !document.querySelector('.c7-tour'));
 }
 
