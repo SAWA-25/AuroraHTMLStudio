@@ -4,16 +4,20 @@ import { installPreviewCaptureGuard, lockScreenshotButton } from '../src/capture
 import { isPresentationReady, shouldExitPresentation, isolateLegacyFocus } from '../src/presentationSafety.js';
 
 test('first presentation waits for the splash to finish restoring native focus state', () => {
-  let splash = {}, rail = null;
+  let splash = {}, rail = null, tour = null;
   const document = {
     getElementById: id => id === 'boot' ? splash : null,
-    querySelector: selector => selector === '#rail .rail-top' ? rail : null,
+    querySelector: selector => selector === '#rail .rail-top' ? rail : tour,
   };
   assert.equal(isPresentationReady(document, false), false);
   rail = {};
   assert.equal(isPresentationReady(document, true), false);
   splash = null;
   assert.equal(isPresentationReady(document, true), true);
+  assert.equal(isPresentationReady(document, true, true), false);
+  tour = {};
+  assert.equal(isPresentationReady(document, true), false);
+  tour = null;
   rail = null;
   assert.equal(isPresentationReady(document, true), false);
 });
