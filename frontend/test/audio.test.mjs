@@ -24,6 +24,6 @@ test('LRC parses sorted multiple stamps and millisecond offset', () => {
 
 test('LRC rejects oversized source and line count', () => {
   assert.throws(() => parseLrc('x'.repeat(1024 * 1024 + 1)), /1 MB/);
-  const tooMany = Array.from({ length: 5001 }, (_, index) => `[00:${String(index % 60).padStart(2, '0')}][01:00]x`).join('\\n');
+  const tooMany = Array.from({ length: 5001 }, (_, index) => `[00:${String(index % 60).padStart(2, '0')}][01:00]x`).join('\n');
   assert.throws(() => parseLrc(tooMany), /10,000/);
 });
