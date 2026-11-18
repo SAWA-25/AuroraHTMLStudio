@@ -12,14 +12,14 @@ export function formatTime(seconds) {
 }
 export function parseLrc(text) {
   if (typeof text !== 'string' || text.length > 1024 * 1024) throw new Error('LRC 内容超过 1 MB，或不是文本。');
-  const offsets = [...text.matchAll(/^\\[offset:([+-]?\\d+)\\]\\s*$/gim)];
+  const offsets = [...text.matchAll(/^\[offset:([+-]?\d+)\]\s*$/gim)];
   const offset = Number(offsets.at(-1)?.[1] || 0) / 1000;
   if (!Number.isFinite(offset)) throw new Error('LRC 时间偏移无效。');
   const lines = [];
-  for (const row of text.replace(/^\\uFEFF/, '').split(/\\r?\\n/)) {
-    const stamps = [...row.matchAll(/\\[(\\d{1,4}):([0-5]\\d)(?:[.:](\\d{1,3}))?\\]/g)];
+  for (const row of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+    const stamps = [...row.matchAll(/\[(\d{1,4}):([0-5]\d)(?:[.:](\d{1,3}))?\]/g)];
     if (!stamps.length) continue;
-    const lyric = row.replace(/\\[(\\d{1,4}):([0-5]\\d)(?:[.:](\\d{1,3}))?\\]/g, '').trim();
+    const lyric = row.replace(/\[(\d{1,4}):([0-5]\d)(?:[.:](\d{1,3}))?\]/g, '').trim();
     for (const stamp of stamps) {
       const fraction = Number(`0.${stamp[3] || '0'}`);
       lines.push({ time: Math.max(0, Number(stamp[1]) * 60 + Number(stamp[2]) + fraction + offset), text: lyric });
@@ -85,7 +85,7 @@ export default function useLocalAudio(active = true) {
 
   const importAudio = useCallback((file) => {
     if (!file || !mounted.current) return;
-    if (!file.size || (!file.type.startsWith('audio/') && !/\\.(mp3|wav|ogg|m4a|aac|flac|opus|webm|aiff?)$/i.test(file.name))) {
+    if (!file.size || (!file.type.startsWith('audio/') && !/\.(mp3|wav|ogg|m4a|aac|flac|opus|webm|aiff?)$/i.test(file.name))) {
       setState((s) => ({ ...s, error: '请选择非空的本地音频文件，例如 MP3、WAV 或 M4A。' })); return;
     }
     playVersion.current += 1; playPending.current = false; lyricVersion.current += 1;
@@ -183,7 +183,7 @@ export default function useLocalAudio(active = true) {
   const importLrc = useCallback(async (file) => {
     if (!file || !audioRef.current || !mounted.current) return;
     const version = ++lyricVersion.current;
-    if (!/\\.lrc$/i.test(file.name) || file.size > 1024 * 1024) {
+    if (!/\.lrc$/i.test(file.name) || file.size > 1024 * 1024) {
       setLyrics((s) => ({ ...s, loading: false, error: '请选择 1 MB 以内的 .lrc 歌词文件。' })); return;
     }
     setLyrics((s) => ({ ...s, loading: true, error: '' }));
